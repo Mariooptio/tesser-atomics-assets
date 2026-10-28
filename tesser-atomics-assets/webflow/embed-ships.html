@@ -1,0 +1,271 @@
+<div class="tz-ships" id="ships">
+<div class="tz-ships__track" data-ships-track="">
+<div class="tz-ships__pin">
+<h2 class="tz-ships__h">One module. Countless maritime applications.</h2>
+<div class="tz-ships__live">
+<style>
+/* Ships v6 · "One module. Countless maritime applications." · scoped to #tsr-ships (#tsr-ships is replaced by build.py). No
+   html/body rules. v6 follows the designers' Figma for this section (Tesser NEW, section 21859:2758 and its six per-tab
+   variants), designed at 1440 on the 1200 column:
+     1. the heading, centred: Inter 600 48/50.88, -0.025em, Navy. It breaks only after "One module." (two inline-block
+        halves);
+     2. the tiles (the tab bar): #EAEBE9, 8 px apart, a seventh of the column each (tiles=fit; the four of fleet=plan sit
+        centred) or sharing the column (tiles=fill). Each: padding 8 6 (with the 1 px frame inside it), the profile 37.64 tall, the name 6 px under it,
+        Inter 500 13/16.9 -0.005em, Navy 64% (the active one Navy). The active tile has a 1 px Navy frame and a 3 px gold
+        bar along its top (a timer while auto-advancing, full after a pick); the others' profiles are at 55%. No hairline;
+     3. one row, 40 px apart: the ship's own box (664 x 298 at 1440; the runtime fits the ship in it) and the card beside
+        it, centred on each other. The card: eyebrow Inter 500 11/17 0.22em caps Fiord, 15 px; the heading 700 30/33.6
+        -0.02em Navy, 15 px; the body 400 16/24.8 Fiord; the government card's three lines as plain bullet text 13.6/21
+        Fiord, 10 px under the body; the button 25 px under, a 1 px Navy outline, Inter 400 14/22.4 0.01em caps, padding
+        13.5 20, the 8 px arrow 10 px after the label;
+     4. padding 120 over the heading and 82 under the row, 60 between the heading, the tiles and the row.
+   One box, as v5: the root is a size container. Standalone it is as tall as the Figma's government variant (840 px at
+   1440: its card is the tallest, and every card shares one cell so nothing jumps between ships; the ship and the card
+   are centred on each other in that row, as the Figma has them), at most one viewport; a host may give it any height.
+   When the box is shorter than that, the padding and the gaps give way first (linearly, from Figma's 120 / 60 / 82 at
+   840 px to about 30 / 24 / 24 at 648), then the ship's box, before anything clips. Below 900 px the card goes under the ship; below about 980 px the tiles
+   scroll sideways (faded edges; the active tile is scrolled to the middle); 760 px and below (phones), smaller tiles and
+   type. Every card sits in one shared grid cell, so the block is always as tall as the longest card (government): no
+   layout shift between ships. A host can set --pad (the side inset; the site: its gutter) and --col (the column). */
+#tsr-ships{--navy:#022434;--deep:#0A1626;--deepest:#050D18;--lift:#142A44;--gold:#E1AB25;--ecru:#F5F1E8;--rock:#E8E0CC;--fiord:#4D5A6E;--bali:#8A99AD;
+  --paper:#F2F2F0;--paper-rgb:242,242,240;--pad:64px;--col:min(1200px,calc(100cqi - 2 * var(--pad)));
+  --tgap:8px;--rgap:40px;--padt:clamp(16px,calc(47cqh - 275px),120px);--padb:clamp(14px,calc(30.2cqh - 171.7px),82px);--vgap:clamp(12px,calc(18.75cqh - 97.5px),60px);
+  --bg:var(--deepest);--bg-rgb:5,13,24;--ink:var(--ecru);--ink2:rgba(245,241,232,.82);--muted:rgba(138,153,173,.95);
+  --tab:rgba(245,241,232,.62);--focus:var(--gold);--frame:var(--ecru);--tile:rgba(245,241,232,.05);
+  --eb:var(--bali);--cta:var(--gold);--cta-hover:rgba(225,171,37,.1);
+  position:relative;display:block;container:ships / size;
+  height:min(100vh,1000px,calc(542px + (var(--col) - 40px) * .2569));height:min(100svh,1000px,calc(542px + (var(--col) - 40px) * .2569));min-height:540px;overflow:hidden;
+  background:var(--bg);color:var(--ink);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* on paper: Figma's colours. The eyebrow and body are Fiord, the tile names Navy at 64% (Navy when active), the tiles
+   #EAEBE9 (the colour the profiles are rendered on, so they sit in them seamlessly), the button Navy */
+#tsr-ships[data-theme="light"]{--bg:var(--paper);--bg-rgb:var(--paper-rgb);--ink:var(--navy);--ink2:var(--fiord);--muted:var(--fiord);
+  --tab:rgba(2,36,52,.64);--focus:#876410;--frame:var(--navy);--tile:#EAEBE9;
+  --eb:var(--fiord);--cta:var(--navy);--cta-hover:rgba(2,36,52,.06)}
+#tsr-ships[data-look="blueprint"]:not([data-theme="light"]){--bg:var(--navy);--bg-rgb:2,36,52}
+#tsr-ships *,#tsr-ships *::before,#tsr-ships *::after{box-sizing:border-box}
+/* below 900 px the card goes under the ship, so the Figma height no longer holds: standalone, one viewport */
+@media (max-width:899px){#tsr-ships{height:min(100vh,1000px);height:min(100svh,1000px)}}
+
+/* the one axis: heading, tiles, then the row (the ship and its card) */
+#tsr-ships .sh-wrap{display:grid;height:100%;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr);justify-items:center;
+  padding:var(--padt) 0 var(--padb)}
+#tsr-ships .sh-head{width:100%;min-width:0;padding:0 var(--pad) var(--vgap);text-align:center}
+#tsr-ships .sh-head h2{margin:0 auto;max-width:var(--col);font:600 clamp(28px,min(4cqi,6.3cqh),48px)/1.06 Inter,system-ui,sans-serif;letter-spacing:-.025em;color:var(--ink)}
+#tsr-ships .sh-hl{display:inline-block}   /* the heading breaks only after "One module." (a narrow box can still wrap the second half) */
+#tsr-ships[data-heading="off"] .sh-head{display:none}
+
+/* ---------------- the tiles: a seventh of the column each, centred (tiles=fit), or sharing the column (tiles=fill) */
+#tsr-ships .sh-fleet{position:relative;width:var(--col);max-width:100%;min-width:0;list-style:none;margin:0 0 var(--vgap);
+  padding:2px 0 0;display:grid;--tw:calc((var(--col) - 6 * var(--tgap)) / 7);grid-template-columns:repeat(var(--n,4),minmax(118px,var(--tw)));
+  justify-content:center;column-gap:var(--tgap);overflow-x:auto;overflow-y:hidden;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#tsr-ships[data-tiles="fill"] .sh-fleet{grid-template-columns:repeat(var(--n,4),minmax(118px,1fr))}
+#tsr-ships .sh-fleet::-webkit-scrollbar{display:none}
+#tsr-ships .sh-fleet li{display:flex;min-width:0}
+#tsr-ships .sh-thumb{position:relative;display:flex;flex-direction:column;align-items:stretch;width:100%;margin:0;
+  padding:7px 5px 9px;background:var(--tile);border:1px solid transparent;border-radius:0;cursor:pointer;
+  color:var(--tab);text-align:left;font:inherit;-webkit-appearance:none;appearance:none;transition:border-color .25s ease,color .25s ease}
+#tsr-ships .sh-th-img{display:block;width:100%;height:37.64px}
+#tsr-ships[data-tiles="fill"] .sh-th-img{height:auto;aspect-ratio:152.56 / 37.64}
+#tsr-ships .sh-th-img img{display:block;width:100%;height:100%;object-fit:contain;opacity:.55;transition:opacity .3s ease;pointer-events:none}
+#tsr-ships .sh-th-name{display:block;margin-top:6px;padding:0 4px;min-height:33.8px;
+  font:500 13px/16.9px Inter,system-ui,sans-serif;letter-spacing:-.005em}
+#tsr-ships .sh-nw{white-space:nowrap}
+#tsr-ships .sh-thumb:hover{color:var(--ink)}
+#tsr-ships .sh-thumb:hover img{opacity:.85}
+#tsr-ships .sh-thumb.on{border-color:var(--frame);color:var(--ink)}
+#tsr-ships .sh-thumb.on img{opacity:1}
+#tsr-ships .sh-thumb:focus-visible{outline:2px solid var(--focus);outline-offset:-5px;color:var(--ink)}
+/* the gold bar along the active tile's top: a timer while auto-advancing, full after a pick */
+#tsr-ships .sh-bar{position:absolute;z-index:1;left:-1px;right:-1px;top:-1px;height:3px;background:var(--gold);transform-origin:0 50%;transform:scaleX(0);pointer-events:none}
+/* on the dark theme the profiles (rendered on paper) read as small prints */
+#tsr-ships:not([data-theme="light"]) .sh-th-img{background:var(--paper)}
+
+/* ---------------- the row: the ship's own box (664 of the 1200 column) and the card (the other 496), 40 px apart. The
+   ship's box keeps Figma's 664 x 298 where the row is tall enough, and gives way (shorter, the same width) where not */
+#tsr-ships .sh-row{width:var(--col);max-width:100%;min-width:0;min-height:0;height:100%;display:grid;grid-template-rows:minmax(0,1fr);
+  grid-template-columns:minmax(0,664fr) minmax(0,496fr);column-gap:var(--rgap);align-items:center}
+#tsr-ships .sh-stage{position:relative;width:100%;min-width:0;aspect-ratio:664 / 298;max-height:100%;overflow:hidden;background:var(--bg)}
+#tsr-ships canvas.sh-gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#tsr-ships .sh-poster{position:absolute;inset:0;background-color:var(--bg);background-image:var(--sh-poster);background-position:center;background-size:contain;
+  background-repeat:no-repeat;opacity:1;transition:opacity .7s ease;pointer-events:none}
+#tsr-ships[data-theme="light"] .sh-poster{background-image:var(--sh-poster-light)}
+#tsr-ships.is-live .sh-poster{opacity:0}
+#tsr-ships.is-poster .sh-head,#tsr-ships.is-poster .sh-fleet{visibility:hidden}
+#tsr-ships.is-poster .sh-cards{opacity:0}   /* not visibility: the cards set their own */
+/* card=off: the ship takes the row, centred */
+#tsr-ships[data-card="off"] .sh-row{grid-template-columns:minmax(0,664px);justify-content:center}
+
+/* ---------------- the card */
+#tsr-ships .sh-cards{position:relative;min-width:0;display:grid;grid-template-columns:minmax(0,1fr);pointer-events:none}
+#tsr-ships[data-card="off"] .sh-cards{display:none}
+#tsr-ships .sh-tcard{grid-area:1 / 1;align-self:center;min-width:0;display:flex;flex-direction:column;align-items:flex-start;
+  opacity:0;visibility:hidden;will-change:opacity,transform}
+#tsr-ships .sh-tcard.on{opacity:1;visibility:visible;pointer-events:auto}
+#tsr-ships .sh-eb{margin:0 0 clamp(8px,1.95cqh,15px);font:500 11px/17px Inter,system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--eb)}
+#tsr-ships .sh-hd{margin:0;max-width:100%;font:700 clamp(22px,3.9cqh,30px)/1.12 Inter,system-ui,sans-serif;letter-spacing:-.02em;color:var(--ink)}
+#tsr-ships .sh-tx{min-width:0;max-width:100%;padding-right:6.94px}   /* Figma's body frame insets its right edge by 6.94 px */
+#tsr-ships .sh-bd{margin:clamp(8px,1.95cqh,15px) 0 0;padding-top:2.4px;font:400 clamp(14.5px,2.08cqh,16px)/1.55 Inter,system-ui,sans-serif;color:var(--ink2)}
+/* the government card's three lines: plain bullet text, as the Figma has it */
+#tsr-ships .sh-tags{margin:10px 0 0;padding:0 0 0 21px;list-style:disc;font:400 13.6px/21px Inter,system-ui,sans-serif;color:var(--ink2)}
+#tsr-ships .sh-tags li::marker{font-size:.8em}
+/* the button: the site's outlined button with the arrow, set in Inter as the Figma has it; Navy on paper, gold on navy */
+#tsr-ships .sh-cta{display:inline-flex;align-items:center;gap:10px;margin-top:clamp(12px,3.2cqh,25px);padding:13.5px 20px 13.89px;
+  color:var(--cta);border:1px solid currentColor;border-radius:0;
+  font:400 14px/22.4px Inter,system-ui,sans-serif;letter-spacing:.01em;text-transform:uppercase;text-decoration:none;
+  background:transparent;white-space:nowrap;transition:background-color .25s}
+#tsr-ships .sh-cta svg{width:8px;height:8px;fill:currentColor;flex:none;transition:transform .25s cubic-bezier(.2,.7,.1,1)}
+#tsr-ships .sh-cta:hover{background:var(--cta-hover)}
+#tsr-ships .sh-cta:hover svg{transform:translate(2px,-2px)}
+#tsr-ships .sh-cta:focus-visible{outline:1px solid var(--cta);outline-offset:3px}
+
+/* knob panel (?knobs) */
+#tsr-ships .sh-knobs{position:fixed;top:12px;right:12px;z-index:50;width:290px;max-height:calc(100vh - 24px);overflow:auto;pointer-events:auto;
+  background:rgba(10,22,38,.94);border:1px solid rgba(225,171,37,.35);padding:12px 14px;color:var(--ecru);font:500 11px/1.4 Inter,system-ui,sans-serif}
+#tsr-ships .sh-knobs__h{color:var(--gold);text-transform:uppercase;letter-spacing:.22em;margin-bottom:10px}
+#tsr-ships .sh-knobs__row{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}
+#tsr-ships .sh-knobs__row b{color:var(--gold);font-weight:500}
+#tsr-ships .sh-knobs__hint{color:var(--bali);margin:-6px 0 10px}
+#tsr-ships .sh-knobs input[type=range]{width:100%;accent-color:#E1AB25}
+#tsr-ships .sh-knobs select,#tsr-ships .sh-knobs button{font:inherit;background:var(--deep);color:var(--ecru);border:1px solid var(--fiord);border-radius:0;padding:4px 8px;cursor:pointer}
+#tsr-ships .sh-knobs__copy{width:100%;margin-top:4px}
+
+/* below about 980 px the tiles become a full-width row that scrolls sideways when it has to, with faded edges; centred
+   while it fits, start-aligned (and scrollable) once it doesn't */
+@container ships (max-width:979px){
+  #tsr-ships .sh-fleet{width:100%;display:flex;justify-content:flex-start;column-gap:var(--tgap);padding-left:14px;padding-right:14px;
+    -webkit-mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%);
+            mask-image:linear-gradient(90deg,transparent 0,#000 14px,#000 calc(100% - 14px),transparent 100%)}
+  #tsr-ships .sh-fleet li{flex:0 0 clamp(124px,17cqi,150px)}
+  #tsr-ships[data-tiles="fill"] .sh-fleet li{flex:1 0 clamp(124px,17cqi,150px)}
+  #tsr-ships .sh-fleet li:first-child{margin-left:auto}
+  #tsr-ships .sh-fleet li:last-child{margin-right:auto}
+}
+
+/* below 900 px: the card goes under the ship. The ship's box takes the height the tiles and the card leave */
+@container ships (max-width:899px){
+  #tsr-ships .sh-row{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(0,1fr) auto;align-items:stretch;row-gap:clamp(10px,2cqh,20px)}
+  #tsr-ships .sh-stage{aspect-ratio:auto;height:100%;max-height:none;min-height:0}
+  #tsr-ships .sh-cards{align-self:end}
+  #tsr-ships .sh-tcard{align-self:start}
+  #tsr-ships .sh-tx{max-width:36em}
+  #tsr-ships .sh-wrap{--padt:clamp(16px,6cqh,64px);--padb:clamp(14px,4cqh,40px);--vgap:clamp(10px,3.4cqh,36px)}
+}
+
+/* narrow (phones, or a narrow host box): the same order, smaller tiles (names on up to two lines) and type */
+@container ships (max-width:760px){
+  #tsr-ships .sh-wrap{--pad:20px;--col:calc(100cqi - 40px);--padt:clamp(14px,3cqh,28px);--padb:clamp(14px,2.8cqh,26px);--vgap:clamp(8px,1.6cqh,14px)}   /* (a container query styles the root's descendants, not the root) */
+  #tsr-ships .sh-head{padding-left:20px;padding-right:20px}
+  #tsr-ships .sh-head h2{font-size:clamp(22px,min(7cqi,3.4cqh),30px);line-height:1.08}
+  #tsr-ships .sh-fleet li,#tsr-ships[data-tiles="fill"] .sh-fleet li{flex:0 0 128px}
+  #tsr-ships .sh-thumb{padding:5px 5px 7px}
+  #tsr-ships .sh-th-img{height:auto;aspect-ratio:152.56 / 37.64}
+  #tsr-ships .sh-th-name{font-size:12px;line-height:1.25;min-height:2.5em;margin-top:4px}
+  #tsr-ships .sh-row{width:100%}
+  #tsr-ships .sh-cards{width:calc(100% - 40px);justify-self:center}
+  #tsr-ships .sh-eb{font-size:10px;line-height:15px;margin-bottom:6px}
+  #tsr-ships .sh-hd{font-size:clamp(19px,2.6cqh,22px)}
+  #tsr-ships .sh-bd{margin-top:clamp(6px,1cqh,10px);font-size:14px;line-height:1.45}
+  #tsr-ships .sh-tags{margin-top:clamp(4px,.8cqh,8px);font-size:12.5px;line-height:18px}
+  #tsr-ships .sh-cta{margin-top:clamp(10px,1.6cqh,14px);padding:9px 14px;font-size:12.5px;line-height:1.6}
+}
+
+/* drive=host: the page gives the box and the root fills it (a guard keeps it visible in a box with no height) */
+#tsr-ships[data-drive="host"]{width:100%;height:100%;min-height:480px}
+
+/* the thumbnail maker (thumbmaker-v6.html, data-thumbmaker on the root): the stage alone fills the window */
+#tsr-ships[data-thumbmaker]{height:100vh;min-height:0}
+#tsr-ships[data-thumbmaker] .sh-wrap{display:block;padding:0}
+#tsr-ships[data-thumbmaker] .sh-wrap > :not(.sh-row),#tsr-ships[data-thumbmaker] .sh-row > :not(.sh-stage){display:none}
+#tsr-ships[data-thumbmaker] .sh-row{display:block;width:100%;height:100%}
+#tsr-ships[data-thumbmaker] .sh-stage{position:absolute;inset:0;width:auto;height:auto;max-height:none;aspect-ratio:auto;margin:0}
+
+@media (prefers-reduced-motion:reduce){
+  #tsr-ships .sh-poster,#tsr-ships .sh-thumb,#tsr-ships .sh-th-img img,#tsr-ships .sh-cta,#tsr-ships .sh-cta svg{transition:none}
+}
+
+</style>
+<section aria-label="One module. Countless maritime applications." class="tsr-ships" data-card="under" data-contact="contact-t4m-v3.html" data-fleet="plan" data-heading="on" data-ships-cards="1" id="tsr-ships">
+<div class="sh-wrap">
+<div class="sh-head">
+<h2><span class="sh-hl">One module.</span> <span class="sh-hl">Countless maritime applications.</span></h2>
+</div>
+<!-- v6 (the designers' Figma, section 21859:2758): the heading, then the ships as a row of thumbnail tiles (the tab
+         bar; four by default, fleet=plan): each a rendered broadside profile of its hull, all to one scale with the gold
+         module at the same place (v8: src/thumbs-v8/, made by src/thumbs-v8/make_thumbs.sh with this script in thumb mode),
+         and its name. Then one row: the ship in its own box (664 x 298 at 1440; the camera fits each ship in it) and its
+         card beside it. Tab semantics: role=tablist / tab / tabpanel, roving tabindex, arrow keys move focus, Enter or
+         Space picks (manual activation, because a pick starts a 2.4 s dissolve) -->
+<ul aria-label="Ships" class="sh-list sh-fleet" role="tablist">
+<li data-ship-item="lng" role="presentation"><button aria-controls="tsr-sh-panel-lng" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-lng" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-20c15f5755.webp" width="400"/></span><span class="sh-th-name">LNG carriers</span><i class="sh-bar"></i></button></li>
+<li data-ship-item="box" role="presentation"><button aria-controls="tsr-sh-panel-box" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-box" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-5ed883cc9e.webp" width="400"/></span><span class="sh-th-name">Container ships</span><i class="sh-bar"></i></button></li>
+<li data-ship-item="bulk" role="presentation"><button aria-controls="tsr-sh-panel-bulk" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-bulk" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-ae070bae22.webp" width="400"/></span><span class="sh-th-name">Bulk and <span class="sh-nw">deep-sea</span></span><i class="sh-bar"></i></button></li>
+<li data-ship-item="gov" role="presentation"><button aria-controls="tsr-sh-panel-gov" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-gov" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-730ca8fe01.webp" width="400"/></span><span class="sh-th-name">Government and defense</span><i class="sh-bar"></i></button></li>
+<li data-ship-item="power" role="presentation"><button aria-controls="tsr-sh-panel-power" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-power" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-4642c56ea4.webp" width="400"/></span><span class="sh-th-name">Power ships</span><i class="sh-bar"></i></button></li>
+<li data-ship-item="cruise" role="presentation"><button aria-controls="tsr-sh-panel-cruise" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-cruise" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-e0283ceab1.webp" width="400"/></span><span class="sh-th-name">Cruise ships</span><i class="sh-bar"></i></button></li>
+<li data-ship-item="data" role="presentation"><button aria-controls="tsr-sh-panel-data" aria-selected="false" class="sh-name sh-thumb" id="tsr-sh-tab-data" role="tab" tabindex="-1" type="button"><span class="sh-th-img"><img alt="" decoding="async" height="100" src="https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/inl-6730c42b15.webp" width="400"/></span><span class="sh-th-name"><span class="sh-nw">Data-center</span> ships</span><i class="sh-bar"></i></button></li>
+</ul>
+<div class="sh-row">
+<div class="sh-stage">
+<canvas aria-hidden="true" class="sh-gl"></canvas>
+<div aria-label="A clay model of a ship with its hull cut away to show a gold reactor module in its engine room, with working space above and around it. The same module sits in each kind of ship: a gas carrier, a container ship, a bulk carrier and a support ship." class="sh-poster" role="img" style="--sh-poster:none;--sh-poster-light:url(https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.0/assets/ships-c-v8/sh-poster-light.jpg)"></div>
+</div>
+<!-- the plan's Section 5 cards, one per ship (copy verbatim from site/COPY-site-v3.md, as v4; v6: the government
+         card's button reads "Partner with us", as the Figma has it, and its three lines are plain bullet text). All of
+         them share one grid cell beside the ship, so nothing moves when the ship changes. Each is the tabpanel of its
+         tab. The CTA hrefs are rewritten from the root's data-contact at mount -->
+<div class="sh-cards">
+<article aria-labelledby="tsr-sh-tab-lng" class="sh-tcard on" data-card="lng" id="tsr-sh-panel-lng" role="tabpanel">
+<p class="sh-eb">LNG carriers</p>
+<h3 class="sh-hd">Start on the transatlantic LNG run.</h3>
+<div class="sh-tx"><p class="sh-bd">The reactor matches the turbines these ships already run. No bunker fuel to buy, and the boil-off gas they burn today becomes cargo to sell.</p></div>
+<a class="sh-cta" data-interest="partnerships" href="contact-t4m-v3.html#interest=partnerships">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+<article aria-labelledby="tsr-sh-tab-box" class="sh-tcard" data-card="box" id="tsr-sh-panel-box" role="tabpanel">
+<p class="sh-eb">Container ships</p>
+<h3 class="sh-hd">Then container ships.</h3>
+<div class="sh-tx"><p class="sh-bd">Container ships on time-sensitive runs, where speed changes the business.</p></div>
+<a class="sh-cta" data-interest="partnerships" href="contact-t4m-v3.html#interest=partnerships">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+<article aria-labelledby="tsr-sh-tab-bulk" class="sh-tcard" data-card="bulk" id="tsr-sh-panel-bulk" role="tabpanel">
+<p class="sh-eb">Bulk and deep-sea</p>
+<h3 class="sh-hd">Then the rest of the fleet.</h3>
+<div class="sh-tx"><p class="sh-bd">Bulk carriers and deep-sea trade, the rest of the fleet as it renews.</p></div>
+<a class="sh-cta" data-interest="partnerships" href="contact-t4m-v3.html#interest=partnerships">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+<article aria-labelledby="tsr-sh-tab-gov" class="sh-tcard" data-card="gov" id="tsr-sh-panel-gov" role="tabpanel">
+<p class="sh-eb">Government and defense</p>
+<h3 class="sh-hd">Extending the American nuclear advantage.</h3>
+<div class="sh-tx">
+<p class="sh-bd">Our technology complements the Navy's heritage with support ships that deliver the fuel, goods, and power that contested logistics require. Fuel is the largest link in the tail and the first one an adversary goes after.</p>
+<ul class="sh-tags"><li>Persistence without the port call</li><li>Sealift off the fuel chain</li><li>Power where there is no grid</li></ul>
+</div>
+<a class="sh-cta" data-interest="government" href="contact-t4m-v3.html#interest=government">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+<article aria-labelledby="tsr-sh-tab-power" class="sh-tcard" data-card="power" id="tsr-sh-panel-power" role="tabpanel">
+<p class="sh-eb">Power ships</p>
+<h3 class="sh-hd">Power where there is no grid.</h3>
+<div class="sh-tx"><p class="sh-bd">A power ship moors at a port, an island or a disaster zone and plugs into the shore.</p></div>
+<a class="sh-cta" data-interest="partnerships" href="contact-t4m-v3.html#interest=partnerships">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+<article aria-labelledby="tsr-sh-tab-cruise" class="sh-tcard" data-card="cruise" id="tsr-sh-panel-cruise" role="tabpanel">
+<p class="sh-eb">Cruise ships</p>
+<h3 class="sh-hd">A small city at sea.</h3>
+<div class="sh-tx"><p class="sh-bd">Lights, kitchens, cooling and propellers. One module can carry all of it, with no exhaust at sea.</p></div>
+<a class="sh-cta" data-interest="partnerships" href="contact-t4m-v3.html#interest=partnerships">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+<article aria-labelledby="tsr-sh-tab-data" class="sh-tcard" data-card="data" id="tsr-sh-panel-data" role="tabpanel">
+<p class="sh-eb">Data-center ships</p>
+<h3 class="sh-hd">Steady power for computing.</h3>
+<div class="sh-tx"><p class="sh-bd">A floating data center can moor where it's needed and run on steady power from its own reactor.</p></div>
+<a class="sh-cta" data-interest="partnerships" href="contact-t4m-v3.html#interest=partnerships">Partner with us<svg aria-hidden="true" focusable="false" viewbox="0 0 8 8"><path d="M6.68049 6.64534V1.39981L7.53252 1.45249L0.980207 8L0 7.02164L6.55231 0.481656L6.62017 1.33208H1.34213V0L8 0.0150517V6.64534H6.68049Z"></path></svg></a>
+</article>
+</div>
+</div>
+</div>
+</section>
+
+</div>
+</div>
+</div>
+</div>

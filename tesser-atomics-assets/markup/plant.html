@@ -1,0 +1,142 @@
+<div class="tz-how__live">
+<style>
+/* Plant v5 (styles unchanged from v3) · "How it works: the plant" · scoped to #tsr-plant (#tsr-plant is replaced by build.py). No html/body rules.
+   A copy of v1's plant.css (v1 is unchanged). v2 (Andrew: "I don't want to see the ship get cut off"): the whole ship
+   is always in frame, so the stage has no edge fades; copy=off lets the stage fill the box; on phones the box is as
+   tall as its content (the copy, then a stage shaped to the ship), so nothing waits in an empty gap.
+     stage=right (default): the copy in one column on the left (about 40%), the stage on the right, both the box's full
+                            height. The text stays locked in one column beside the 3D (Matt, Oct 6)
+     stage=full:            the stage fills the box; the copy sits over its left side and the ship is framed right of it
+   Narrow (a root of 760 px or less): the copy on top, the stage below.
+   One box tall on a wide screen: standalone one viewport (100svh, at most 1000 px); with data-drive="host" it fills the
+   host's box. Beside the stage the copy comes in on the build's beats (the runtime sets is-b1..is-b3 on the root, and
+   pl-stagger only when it runs and the copy is beside the stage, so without the script every line shows). Theme:
+   data-theme on the root (light is the default; dark for a navy section). A host can set --pad (the copy's left inset).
+   v3 (a copy of v2's): Inter only, per the designers' Figma (Section 3, 21859:1707): the label is Navy Inter 500 11/14.3,
+   +0.22em, caps, on rgba(242,242,240,.82), with a 1 px Navy-50% leader; the spec row is Inter 11/17, +0.0909em, caps,
+   the names 700 and the values 400, in Fiord; the headline is 600. */
+#tsr-plant{--navy:#022434;--deep:#0A1626;--deepest:#050D18;--lift:#142A44;--gold:#E1AB25;--ecru:#F5F1E8;--rock:#E8E0CC;--fiord:#4D5A6E;--bali:#8A99AD;
+  --paper:#F2F2F0;--paper-rgb:242,242,240;--pad:64px;
+  --bg:var(--navy);--bg-rgb:2,36,52;--ink:var(--ecru);--ink2:rgba(245,241,232,.82);--muted:rgba(138,153,173,.95);
+  --eb:var(--gold);--rule:rgba(245,241,232,.16);--lead:rgba(245,241,232,.55);--plate:rgba(2,36,52,.78);
+  position:relative;display:block;container:plant / size;height:min(100vh,1000px);height:min(100svh,1000px);min-height:560px;overflow:hidden;
+  background:var(--bg);color:var(--ink);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+/* on paper, gold is never text: the spec labels take the site's darkened gold, leaders are navy, gold only marks */
+#tsr-plant[data-theme="light"]{--bg:var(--paper);--bg-rgb:var(--paper-rgb);--ink:var(--navy);--ink2:var(--fiord);--muted:rgba(77,90,110,.82);
+  --eb:#876410;--rule:rgba(2,36,52,.14);--lead:rgba(2,36,52,.5);--plate:rgba(var(--paper-rgb),.82)}
+#tsr-plant *,#tsr-plant *::before,#tsr-plant *::after{box-sizing:border-box}
+
+/* stage=right: copy | stage */
+#tsr-plant .pl-wrap{display:grid;height:100%;grid-template-columns:minmax(320px,40%) minmax(0,1fr);grid-template-rows:minmax(0,1fr)}
+#tsr-plant .pl-copy{grid-column:1;grid-row:1;align-self:center;min-width:0;position:relative;z-index:1;
+  padding:clamp(24px,5cqh,56px) clamp(24px,3cqi,48px) clamp(24px,5cqh,56px) var(--pad)}
+#tsr-plant[data-copy="off"] .pl-copy{display:none}
+#tsr-plant .pl-stage{grid-column:2;grid-row:1;position:relative;overflow:hidden;min-width:0;min-height:0;background:var(--bg)}
+#tsr-plant[data-copy="off"] .pl-stage{grid-column:1 / -1}   /* v2: no copy, the stage fills the box */
+/* stage=full: the stage under everything, the copy over its left side */
+#tsr-plant[data-stage="full"] .pl-wrap{grid-template-columns:minmax(320px,40%) minmax(0,1fr)}
+#tsr-plant[data-stage="full"] .pl-stage{grid-column:1 / -1}
+/* a paper veil behind the copy, so a ship the camera crops runs softly under the text */
+#tsr-plant[data-stage="full"] .pl-copy::before{content:"";position:absolute;z-index:-1;top:-100vh;bottom:-100vh;left:-100vw;right:-40px;
+  background:linear-gradient(90deg,rgba(var(--bg-rgb),1) 0,rgba(var(--bg-rgb),1) calc(100% - 110px),rgba(var(--bg-rgb),0) 100%);pointer-events:none}
+#tsr-plant[data-stage="full"][data-copy="off"] .pl-copy{display:none}
+
+#tsr-plant canvas.pl-gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#tsr-plant .pl-poster{position:absolute;inset:0;background-color:var(--bg);background-image:var(--pl-poster);background-position:center;background-size:cover;
+  background-repeat:no-repeat;opacity:1;transition:opacity .7s ease;pointer-events:none}
+#tsr-plant[data-theme="light"] .pl-poster{background-image:var(--pl-poster-light)}
+#tsr-plant.is-live .pl-poster{opacity:0}
+#tsr-plant.is-poster .pl-copy,#tsr-plant.is-poster .pl-tag{visibility:hidden}
+
+/* ---------------- the copy: the section's headline, body and spec row, in the site's type */
+#tsr-plant .pl-hd{margin:0;max-width:13em;font:600 clamp(28px,min(3cqi,5.2cqh),46px)/1.08 Inter,system-ui,sans-serif;letter-spacing:-.025em;color:var(--ink);text-wrap:balance}
+#tsr-plant .pl-bd{margin:clamp(14px,2.4cqh,24px) 0 0;max-width:27em;font:400 clamp(15px,2cqh,18px)/1.55 Inter,system-ui,sans-serif;color:var(--ink2);text-wrap:pretty}
+/* the spec row, two by two: the site's mono labels (darkened gold on paper), values in navy */
+#tsr-plant .pl-spec{margin:clamp(20px,3.6cqh,36px) 0 0;padding:clamp(14px,2.2cqh,20px) 0 0;border-top:1px solid var(--rule);
+  display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(12px,2cqh,18px) clamp(16px,2cqi,28px);max-width:30em}
+#tsr-plant .pl-spec div{min-width:0}
+#tsr-plant .pl-spec dt{font:700 11px/17px Inter,system-ui,sans-serif;letter-spacing:.0909em;text-transform:uppercase;color:var(--ink2)}
+#tsr-plant .pl-spec dd{margin:2px 0 0;font:400 11px/17px Inter,system-ui,sans-serif;letter-spacing:.0909em;text-transform:uppercase;color:var(--ink2)}
+/* the stagger: hidden until its beat (headline: ship; body: module; spec row: label) */
+#tsr-plant.pl-stagger .pl-c1,#tsr-plant.pl-stagger .pl-c2,#tsr-plant.pl-stagger .pl-c3{opacity:0;transform:translateY(10px);
+  transition:opacity .7s ease,transform .9s cubic-bezier(.2,.7,.1,1)}
+#tsr-plant.pl-stagger.is-b1 .pl-c1,#tsr-plant.pl-stagger.is-b2 .pl-c2,#tsr-plant.pl-stagger.is-b3 .pl-c3{opacity:1;transform:none}
+#tsr-plant.pl-quiet .pl-c1,#tsr-plant.pl-quiet .pl-c2,#tsr-plant.pl-quiet .pl-c3{transition:none}
+
+/* ---------------- the label: a leader from a gold mark on the module's top up to the name (placed by the runtime) */
+#tsr-plant .pl-tag{position:absolute;left:0;top:0;width:0;height:0;z-index:2;pointer-events:none;will-change:transform}
+#tsr-plant[data-label="off"] .pl-tag,#tsr-plant.is-nogl .pl-tag{display:none}
+#tsr-plant .pl-lead{position:absolute;left:-.5px;bottom:0;width:1px;height:60px;background:var(--lead);transform-origin:50% 100%;transform:scaleY(0)}
+#tsr-plant .pl-dot{position:absolute;left:-3px;top:-3px;width:6px;height:6px;background:var(--ink);opacity:0}   /* ink, not gold: it sits on the gold module */
+#tsr-plant .pl-tag-t{position:absolute;left:0;bottom:68px;padding:4.5px 9px 3.8px;white-space:nowrap;opacity:0;
+  font:500 11px/14.3px Inter,system-ui,sans-serif;letter-spacing:.22em;text-transform:uppercase;color:var(--ink);
+  background:var(--plate)}
+
+/* knob panel (?knobs) */
+#tsr-plant .pl-knobs{position:fixed;top:12px;right:12px;z-index:50;width:290px;max-height:calc(100vh - 24px);overflow:auto;pointer-events:auto;
+  background:rgba(10,22,38,.94);border:1px solid rgba(225,171,37,.35);padding:12px 14px;color:var(--ecru);font:500 11px/1.4 Inter,system-ui,sans-serif}
+#tsr-plant .pl-knobs__h{color:var(--gold);text-transform:uppercase;letter-spacing:.22em;margin-bottom:10px}
+#tsr-plant .pl-knobs__row{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}
+#tsr-plant .pl-knobs__row b{color:var(--gold);font-weight:500}
+#tsr-plant .pl-knobs__hint{color:var(--bali);margin:-6px 0 10px}
+#tsr-plant .pl-knobs input[type=range]{width:100%;accent-color:#E1AB25}
+#tsr-plant .pl-knobs select,#tsr-plant .pl-knobs button{font:inherit;background:var(--deep);color:var(--ecru);border:1px solid var(--fiord);border-radius:0;padding:4px 8px;cursor:pointer}
+#tsr-plant .pl-knobs__copy{width:100%;margin-top:4px}
+
+/* narrow (phones, or a narrow host box): the copy on top, the stage below it, in either stage mode */
+@container plant (max-width:760px){
+  #tsr-plant .pl-wrap,#tsr-plant[data-stage="full"] .pl-wrap{display:flex;flex-direction:column}
+  #tsr-plant .pl-copy{flex:none;align-self:stretch;padding:clamp(20px,4cqh,36px) 20px clamp(4px,1cqh,10px)}
+  #tsr-plant[data-copy="off"] .pl-copy{display:none}
+  #tsr-plant .pl-hd{max-width:none;font-size:clamp(24px,min(7.2cqi,3.8cqh),32px);line-height:1.1}
+  #tsr-plant .pl-bd{margin-top:clamp(10px,1.6cqh,14px);font-size:15px;line-height:1.5}
+  #tsr-plant .pl-spec{margin-top:clamp(14px,2.2cqh,20px);padding-top:clamp(10px,1.6cqh,14px);gap:10px 16px}
+  #tsr-plant .pl-spec dt,#tsr-plant .pl-spec dd{font-size:10.5px;line-height:15px}
+  #tsr-plant .pl-stage,#tsr-plant[data-stage="full"] .pl-stage{flex:1 1 auto;min-height:180px;width:100%}
+  #tsr-plant[data-stage="full"] .pl-copy::before{display:none}
+}
+
+/* v2 · phones: the box is as tall as its content, the copy then a stage shaped to the ship (with room for the label),
+   so the ship sits right under the text with no empty band; the copy shows at once there */
+@media (max-width:760px){
+  #tsr-plant:not([data-drive="host"]){height:auto;min-height:0;container-type:inline-size}
+  #tsr-plant:not([data-drive="host"]) .pl-stage,#tsr-plant:not([data-drive="host"])[data-stage="full"] .pl-stage{flex:none;min-height:0;aspect-ratio:1.75}
+  #tsr-plant:not([data-drive="host"]) .pl-copy{padding-bottom:8px}
+}
+
+/* drive=host: the page gives the box and the root fills it (a guard keeps it visible in a box with no height) */
+#tsr-plant[data-drive="host"]{width:100%;height:100%;min-height:480px}
+
+@media (prefers-reduced-motion:reduce){
+  #tsr-plant .pl-poster,#tsr-plant.pl-stagger .pl-c1,#tsr-plant.pl-stagger .pl-c2,#tsr-plant.pl-stagger .pl-c3{transition:none}
+}
+
+</style>
+<section aria-label="How it works: the plant" class="tsr-plant" data-copy="on" data-label="on" data-play="view" data-stage="right" id="tsr-plant">
+<div class="pl-wrap">
+<!-- the section's copy (site/COPY-site-v3.md, Section 3: the v7 headline, the body and spec row; no eyebrow). Beside
+         the stage it comes in on the build's beats: the headline with the hull, the body with the module, the spec row
+         with the label; stacked on a phone it shows at once. copy=off (or data-copy="off") for a page that sets its own
+         and staggers it on t4m:beat / the is-b1..is-b3 classes; the stage then fills the box -->
+<div class="pl-copy">
+<h2 class="pl-hd pl-c1">A nuclear module small enough to fit the ship and powerful enough to propel it.</h2>
+<p class="pl-bd pl-c2">Two reactors and one heat exchanger, optimized for life at sea and coupled to a modern steam turbine.</p>
+<dl class="pl-spec pl-c3">
+<div><dt>Fuel</dt><dd>AGR TRISO pebbles</dd></div>
+<div><dt>Coolant</dt><dd>Molten salt</dd></div>
+<div><dt>Refueling</dt><dd>While running</dd></div>
+<div><dt>Couples to</dt><dd>Modern steam turbines</dd></div>
+</dl>
+</div>
+<div aria-label="A clay model of an LNG carrier, seen from the side, builds itself: the hull, the decks, the cargo trunk and the aft house. Last, the gold nuclear module is lowered into its engine room, with headroom under the deck: two reactors and one heat exchanger in one frame." class="pl-stage" role="img">
+<canvas aria-hidden="true" class="pl-gl"></canvas>
+<div class="pl-poster" style="--pl-poster:url({{BASE}}assets/plant-c-v5/pl-poster.jpg);--pl-poster-light:url({{BASE}}assets/plant-c-v5/pl-poster-light.jpg)"></div>
+<!-- the label: live HTML, placed each frame on the module's top (a leader up past the ship to the name) -->
+<div aria-hidden="true" class="pl-tag"><i class="pl-lead"></i><i class="pl-dot"></i><span class="pl-tag-t">Nuclear module</span></div>
+</div>
+</div>
+</section>
+
+
+</div>

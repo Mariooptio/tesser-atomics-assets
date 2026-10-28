@@ -1,0 +1,163 @@
+<div class="tz-fuel tz-fuel--live" id="fuel-exchange">
+<div class="tz-fuel__live" data-tz-moment="">
+<!-- t4m:embed:start · everything down to t4m:embed:end is the moment (one root #tsr-m4, one style, one script, all scoped). The site already loads Inter and JetBrains Mono, so the @font-face block above stays out of the embed. -->
+<style>
+/* M4 · How the fuel moves · v3 · scoped to #tsr-m4 (#tsr-m4 is replaced by build.py). Same skeleton as the M2/M3 moment.css.
+   v2: the fresh/used legend is gone (copy v3), and a light theme keyed off #tsr-m4[data-theme="light"] (THEME-light.md).
+   The runtime writes data-theme, plus --paper and --paper-rgb in light; a data-theme="light" in the markup styles it before JS.
+   v3: the Figma sync. No fixed-width type inside the module: the small labels (hint, hover tag, knob panel) are Inter Medium
+   11/17 at .22em caps, Figma's "DRAG TO TURN" style, in Figma's colours (Navy, Ecru White, Fiord 95%). */
+#tsr-m4{--navy:#022434;--deep:#0A1626;--deepest:#050D18;--lift:#142A44;--gold:#E1AB25;--ecru:#F5F1E8;--rock:#E8E0CC;--fiord:#4D5A6E;--bali:#8A99AD;--off:#FDFFFE;
+  --paper:#F2F2F0;--fiord-95:rgba(77,90,110,.95);--paper-rgb:242,242,240;--fresh-l:#C98A08;--used-l:#5F6F86;
+  --pad:64px;position:relative;display:block;background:var(--deepest);color:var(--ecru);
+  font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale}
+#tsr-m4 *,#tsr-m4 *::before,#tsr-m4 *::after{box-sizing:border-box}
+#tsr-m4 .m4-track{position:relative;height:650vh}
+#tsr-m4 .m4-stage{position:sticky;top:0;height:100vh;overflow:hidden;background:var(--deepest);touch-action:pan-y;cursor:grab}
+#tsr-m4 .m4-stage.is-drag{cursor:grabbing}
+#tsr-m4.is-still .m4-stage{cursor:default}
+#tsr-m4 canvas.m4-gl{position:absolute;inset:0;width:100%;height:100%;display:block}
+#tsr-m4 .m4-poster{position:absolute;inset:0;background-color:var(--deepest);background-image:var(--m4-poster);background-position:center;background-size:cover;background-repeat:no-repeat;opacity:1;transition:opacity .7s ease;pointer-events:none}
+#tsr-m4.is-live .m4-poster{opacity:0}
+#tsr-m4 .m4-veil{position:absolute;inset:0;pointer-events:none;
+  background:linear-gradient(to top,rgba(5,13,24,.86) 0%,rgba(5,13,24,.5) 20%,rgba(5,13,24,0) 44%),
+             linear-gradient(to left,rgba(5,13,24,.66) 0%,rgba(5,13,24,.38) 24%,rgba(5,13,24,0) 44%)}
+#tsr-m4 .m4-ui{position:absolute;inset:0;pointer-events:none}
+#tsr-m4.is-poster .m4-ui,#tsr-m4.is-poster .m4-veil{display:none}
+
+#tsr-m4 .m4-label{font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:500;font-size:11px;line-height:17px;
+  text-transform:uppercase;letter-spacing:.22em;color:var(--gold);margin:0}
+
+#tsr-m4 .m4-card{position:absolute;left:var(--pad);bottom:var(--pad);max-width:470px}
+#tsr-m4 .m4-card h2{font-family:inherit;font-weight:500;font-size:40px;line-height:1.08;letter-spacing:-.012em;margin:0 0 16px;color:var(--ecru)}
+#tsr-m4 .m4-card p{margin:0;font-size:17px;line-height:1.5;color:rgba(245,241,232,.84);max-width:420px}
+
+#tsr-m4 .m4-call{position:absolute;right:var(--pad);top:24%;width:380px}
+#tsr-m4 .m4-beat{position:absolute;right:0;top:0;width:100%;opacity:0;transform:translateY(10px);transition:opacity .55s ease,transform .55s ease}
+#tsr-m4 .m4-beat.on{opacity:1;transform:none}
+#tsr-m4 .m4-say{font-size:22px;line-height:1.35;font-weight:400;color:var(--ecru);margin:0;max-width:360px}
+
+/* "Drag to turn" */
+#tsr-m4 .m4-hint{position:absolute;left:var(--pad);top:calc(var(--pad) * .6);color:var(--fiord-95);transition:opacity .6s ease}
+#tsr-m4.was-dragged .m4-hint,#tsr-m4.is-still .m4-hint,#tsr-m4.is-nogl .m4-hint{opacity:0}
+
+/* hover tag, follows the cursor */
+#tsr-m4 .m4-tip{position:absolute;left:0;top:0;display:flex;align-items:center;gap:8px;padding:7px 10px;background:rgba(5,13,24,.86);
+  border:1px solid rgba(225,171,37,.55);font-family:Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;font-weight:500;font-size:11px;
+  line-height:1;text-transform:uppercase;letter-spacing:.22em;color:var(--ecru);white-space:nowrap;opacity:0;transition:opacity .2s ease;pointer-events:none}
+#tsr-m4 .m4-tip.on{opacity:1}
+#tsr-m4 .m4-tip i{width:8px;height:8px;border-radius:50%;background:var(--gold)}
+#tsr-m4 .m4-tip[data-cls="3"]{border-color:rgba(138,153,173,.8)}
+#tsr-m4 .m4-tip[data-cls="3"] i{background:var(--bali)}
+#tsr-m4 .m4-tip[data-cls="2"] i{background:linear-gradient(90deg,var(--gold) 50%,var(--bali) 50%)}
+
+/* knob panel (?knobs) */
+#tsr-m4 .m4-knobs{position:fixed;top:12px;right:12px;z-index:50;width:290px;max-height:calc(100vh - 24px);overflow:auto;pointer-events:auto;
+  background:rgba(10,22,38,.94);border:1px solid rgba(225,171,37,.35);padding:12px 14px;color:var(--ecru);
+  font:500 11px/1.4 Inter,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+#tsr-m4 .m4-knobs__h{color:var(--gold);text-transform:uppercase;letter-spacing:.22em;margin-bottom:10px}
+#tsr-m4 .m4-knobs__row{display:flex;flex-direction:column;gap:4px;margin:0 0 10px}
+#tsr-m4 .m4-knobs__row b{color:var(--gold);font-weight:500}
+#tsr-m4 .m4-knobs__hint{color:var(--bali);margin:-6px 0 10px}
+#tsr-m4 .m4-knobs input[type=range]{width:100%;accent-color:#E1AB25}
+#tsr-m4 .m4-knobs select,#tsr-m4 .m4-knobs button{font:inherit;background:var(--deep);color:var(--ecru);border:1px solid var(--fiord);border-radius:0;padding:4px 8px;cursor:pointer}
+#tsr-m4 .m4-knobs__look span:last-child{display:flex;gap:6px}
+#tsr-m4 .m4-knobs button.on{border-color:var(--gold);color:var(--gold)}
+#tsr-m4 .m4-knobs__copy{width:100%;margin-top:4px}
+
+@media (max-width:760px){
+  #tsr-m4{--pad:20px}
+  #tsr-m4 .m4-veil{background:
+    linear-gradient(to top,rgba(5,13,24,.92) 0%,rgba(5,13,24,.6) 22%,rgba(5,13,24,0) 40%),
+    linear-gradient(to bottom,rgba(5,13,24,.88) 0%,rgba(5,13,24,.55) 16%,rgba(5,13,24,0) 30%)}
+  #tsr-m4 .m4-card{right:var(--pad);bottom:24px;max-width:none}
+  #tsr-m4 .m4-card h2{font-size:28px;margin:0 0 10px}
+  #tsr-m4 .m4-card p{font-size:15px;max-width:none}
+  #tsr-m4 .m4-hint{display:none}
+  #tsr-m4 .m4-call{top:50px;left:var(--pad);right:var(--pad);width:auto}
+  #tsr-m4 .m4-say{font-size:18px;max-width:none}
+}
+/* ---- light theme: the page's paper, navy type, paper-coloured veils, paper tags. Gold is never text here. */
+#tsr-m4[data-theme="light"]{background:var(--paper);color:var(--navy)}
+#tsr-m4[data-theme="light"] .m4-stage{background:var(--paper)}
+#tsr-m4[data-theme="light"] .m4-poster{background-color:var(--paper);background-image:var(--m4-poster-light)}
+#tsr-m4[data-theme="light"] .m4-veil{
+  background:linear-gradient(to top,rgba(var(--paper-rgb),.92) 0%,rgba(var(--paper-rgb),.56) 20%,rgba(var(--paper-rgb),0) 44%),
+             linear-gradient(to left,rgba(var(--paper-rgb),.8) 0%,rgba(var(--paper-rgb),.44) 24%,rgba(var(--paper-rgb),0) 44%)}
+#tsr-m4[data-theme="light"] .m4-label{color:var(--navy)}
+#tsr-m4[data-theme="light"] .m4-card h2{color:var(--navy)}
+#tsr-m4[data-theme="light"] .m4-card p{color:var(--fiord)}
+#tsr-m4[data-theme="light"] .m4-say{color:var(--navy)}
+#tsr-m4[data-theme="light"] .m4-hint{color:var(--fiord-95)}
+#tsr-m4[data-theme="light"] .m4-tip{background:rgba(var(--paper-rgb),.95);border-color:rgba(2,36,52,.22);color:var(--navy);box-shadow:0 2px 14px rgba(2,36,52,.1)}
+#tsr-m4[data-theme="light"] .m4-tip[data-cls="3"]{border-color:rgba(2,36,52,.22)}
+#tsr-m4[data-theme="light"] .m4-tip i{background:var(--fresh-l)}
+#tsr-m4[data-theme="light"] .m4-tip[data-cls="3"] i{background:var(--used-l)}
+#tsr-m4[data-theme="light"] .m4-tip[data-cls="2"] i{background:linear-gradient(90deg,var(--fresh-l) 50%,var(--used-l) 50%)}
+@media (max-width:760px){
+  #tsr-m4[data-theme="light"] .m4-veil{background:
+    linear-gradient(to top,rgba(var(--paper-rgb),.94) 0%,rgba(var(--paper-rgb),.62) 22%,rgba(var(--paper-rgb),0) 40%),
+    linear-gradient(to bottom,rgba(var(--paper-rgb),.9) 0%,rgba(var(--paper-rgb),.58) 16%,rgba(var(--paper-rgb),0) 30%)}
+}
+@media (prefers-reduced-motion:reduce){
+  #tsr-m4 .m4-beat,#tsr-m4 .m4-poster,#tsr-m4 .m4-tip{transition:none}
+}
+
+/* ---- drive=host (CHAPTERS.md section 2): the page plays the story inside a fixed box.
+   The root fills the box the page gives it (the box needs a definite height: aspect-ratio or a height),
+   the track collapses to the stage, the stage is not sticky. The headline card is the module's job, so it
+   is hidden; beat lines, hover tags, drag to orbit and the hint stay. With no definite height from the box
+   (or standalone, #drive=host&loop) the root falls back to 16:9. Spacing and type follow the box
+   (container units), not the viewport. With no card, only the right-hand veil behind the beat lines is kept. */
+#tsr-m4[data-drive="host"]{width:100%;height:100%;aspect-ratio:16/9;container:m4 / size;--pad:clamp(14px,4.4cqw,64px)}
+#tsr-m4[data-drive="host"] .m4-track{position:absolute;inset:0;height:100%!important}
+#tsr-m4[data-drive="host"] .m4-stage{position:absolute;inset:0;height:100%}
+#tsr-m4[data-drive="host"] .m4-card{display:none}
+#tsr-m4[data-drive="host"] .m4-call{top:24%;left:auto;right:var(--pad);width:min(340px,34cqw)}
+#tsr-m4[data-drive="host"] .m4-say{font-size:clamp(15px,2.2cqw,22px);max-width:none}
+#tsr-m4[data-drive="host"] .m4-hint{display:block;left:var(--pad);top:calc(var(--pad) * .6)}
+#tsr-m4[data-drive="host"] .m4-veil{background:linear-gradient(to left,rgba(5,13,24,.66) 0%,rgba(5,13,24,.38) 24%,rgba(5,13,24,0) 44%)}
+#tsr-m4[data-drive="host"][data-theme="light"] .m4-veil{background:linear-gradient(to left,rgba(var(--paper-rgb),.8) 0%,rgba(var(--paper-rgb),.44) 24%,rgba(var(--paper-rgb),0) 44%)}
+/* the module plays the story fast, so the outgoing beat line clears before the next arrives (as the in-situ page does) */
+@media (prefers-reduced-motion:no-preference){
+  #tsr-m4[data-drive="host"] .m4-beat{transition:opacity .2s ease,transform .2s ease}
+  #tsr-m4[data-drive="host"] .m4-beat.on{transition:opacity .5s ease .2s,transform .5s ease .2s}
+}
+@container m4 (max-width:600px){
+  #tsr-m4[data-drive="host"] .m4-call{top:var(--pad);left:var(--pad);right:var(--pad);width:auto}
+  #tsr-m4[data-drive="host"] .m4-say{font-size:clamp(13px,3.6cqw,18px)}
+  #tsr-m4[data-drive="host"] .m4-hint{display:none}
+  #tsr-m4[data-drive="host"] .m4-veil{background:linear-gradient(to bottom,rgba(5,13,24,.86) 0%,rgba(5,13,24,.5) 22%,rgba(5,13,24,0) 42%)}
+  #tsr-m4[data-drive="host"][data-theme="light"] .m4-veil{background:linear-gradient(to bottom,rgba(var(--paper-rgb),.9) 0%,rgba(var(--paper-rgb),.56) 22%,rgba(var(--paper-rgb),0) 42%)}
+}
+
+</style>
+<section aria-label="It refuels while it runs" class="tsr-m4" data-beat="1" data-look="s" data-paper="f2f2f0" data-theme="light" data-tz-drive="" data-tz-themed="" id="tsr-m4">
+<div class="m4-track" data-tz-track="">
+<div class="m4-stage">
+<canvas aria-hidden="true" class="m4-gl"></canvas>
+<div aria-label="Two clay models on a dark navy table. On the first, fuel pebbles rise through a softly glowing frosted cylinder with flat ends, like a battery, and a ribbon carries them back round; used, slate-coloured pebbles branch off into a canister. On the second, a gas carrier at a pier is cut away to show a shielded cell holding two identical casks, one of used canisters and one of fresh, and a shore crane lifts the used cask out and lowers a fresh one in, and a truck carries the used cask to a land-based reactor. Every cask and every canister is the same cut-open design, filled with slate used pebbles or gold fresh ones." class="m4-poster" data-alt-light="Two white clay models on a pale table. On the first, fuel pebbles rise through a frosted cylinder with flat ends, like a battery, with a warm glowing core, and a ribbon carries them back round; used, slate-coloured pebbles branch off into a canister. On the second, a gas carrier at a pier is cut away to show a shielded cell holding two identical casks, one of used canisters and one of fresh, and a shore crane lifts the used cask out and lowers a fresh one in, and a truck carries the used cask to a land-based reactor. Every cask and every canister is the same cut-open design, filled with slate used pebbles or gold fresh ones." role="img" style="--m4-poster:none;--m4-poster-light:url({{BASE}}assets/posters/m4-poster-light.jpg)"></div>
+<div class="m4-veil"></div>
+<div class="m4-ui">
+<div aria-live="polite" class="m4-call">
+<div class="m4-beat" data-beat="1"><p class="m4-say">Pebbles circulate through the core and pass through several times.</p></div>
+<div class="m4-beat" data-beat="2"><p class="m4-say">Spent pebbles are drawn off into a canister while the reactor keeps running.</p></div>
+<div class="m4-beat" data-beat="3"><p class="m4-say">Canisters are stored aboard, shielded.</p></div>
+<div class="m4-beat" data-beat="4"><p class="m4-say">At the pier, canisters come off and fresh ones go on.</p></div>
+<div class="m4-beat" data-beat="5"><p class="m4-say">Used fuel can go on to land-based reactors that extract the energy left in it.</p></div>
+</div>
+<div class="m4-card">
+<h2>It refuels while it runs.</h2>
+<p class="tz-sub">Used pebbles are collected into sealed canisters while the reactor keeps running. At the pier, a crane swaps them for fresh ones. Over the life of the ship, the owner buys fuel, never a replacement core.</p>
+</div>
+<p aria-hidden="true" class="m4-label m4-hint">Drag to turn</p>
+<div aria-hidden="true" class="m4-tip"><i></i><span></span></div>
+</div>
+</div>
+</div>
+</section>
+
+
+<!-- t4m:embed:end -->
+</div>
+</div>
