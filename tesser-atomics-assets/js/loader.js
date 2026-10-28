@@ -84,13 +84,23 @@
          not mid-scroll), then idles until it scrolls into view;
        - every lazy image is switched to eager, so nothing pops in later;
        - web fonts, and the hero background video's first frames.
-     Progress goes to the preloader as --tz-progress (0..1) on [data-tz-preloader], and as a whole number into
-     [data-tz-preloader-count] if there is one. When all of it is in, or after a 15 s safety cap, the page unlocks
+     Progress goes to the preloader as --tz-progress (0..1) on [data-tz-preloader], as scaleX on its
+     [data-tz-preloader-bar] (or [data-tz-preloader-fill]) and as a whole number into [data-tz-preloader-count].
+     Scroll is held by blocking wheel, touch and scroll keys (v1.0.5), so nothing reflows when it is released. When all of it is in, or after a 15 s safety cap, the page unlocks
      (html loses tz-locked, gains tz-ready), the preloader fades (.is-done) and is then removed (tz-loading goes).
      window fires 'tz:ready'. A #id in the URL is honoured once the page is unlocked. */
   function preload(els) {
     var H = document.documentElement, pre = document.querySelector('[data-tz-preloader]');
     var count = pre && pre.querySelector('[data-tz-preloader-count]');
+    var bar = pre && pre.querySelector('[data-tz-preloader-bar], [data-tz-preloader-fill]');
+    // v1.0.5 · scroll is held by blocking input, not overflow, so the scrollbar and page width the scenes measure
+    // while loading are the final ones
+    var KEYS = { 32: 1, 33: 1, 34: 1, 35: 1, 36: 1, 37: 1, 38: 1, 39: 1, 40: 1 };
+    var stop = function (e) { e.preventDefault(); }, stopKey = function (e) { if (KEYS[e.keyCode]) e.preventDefault(); };
+    addEventListener('wheel', stop, { passive: false });
+    addEventListener('touchmove', stop, { passive: false });
+    addEventListener('keydown', stopKey);
+    if (pre) pre.setAttribute('aria-busy', 'true');
     var t0 = Date.now(), MIN = 700, CAP = 15000, done = false, total = 0, got = 0, shown = 0;
     var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
     function paint() {
@@ -98,6 +108,7 @@
       var p = total ? got / total : 1;
       shown += (p - shown) * 0.5; if (p - shown < 0.004) shown = p;
       if (pre) pre.style.setProperty('--tz-progress', shown.toFixed(3));
+      if (bar) bar.style.transform = 'scaleX(' + shown.toFixed(3) + ')';
       if (count) count.textContent = String(Math.round(shown * 100));
       raf(paint);
     }
@@ -108,12 +119,20 @@
       setTimeout(function () {
         if (done) return; done = true;
         if (pre) pre.style.setProperty('--tz-progress', '1');
+        if (bar) bar.style.transform = 'scaleX(1)';
         if (count) count.textContent = '100';
         // two frames so the last scene's first draw is on screen before the curtain lifts
         raf(function () { raf(function () {
+          removeEventListener('wheel', stop, { passive: false });
+          removeEventListener('touchmove', stop, { passive: false });
+          removeEventListener('keydown', stopKey);
           H.classList.remove('tz-locked'); H.classList.add('tz-ready');
-          if (pre) pre.classList.add('is-done');
-          setTimeout(function () { H.classList.remove('tz-loading'); }, 700);
+          if (pre) { pre.classList.add('is-done'); pre.setAttribute('aria-busy', 'false'); }
+          setTimeout(function () {
+            H.classList.remove('tz-loading');
+            if (window.ScrollTrigger) window.ScrollTrigger.refresh();
+            window.dispatchEvent(new Event('resize'));
+          }, 700);
           var id = (location.hash || '').slice(1), target = id && /^[\w-]+$/.test(id) && document.getElementById(id);
           if (target) target.scrollIntoView({ block: 'start' });
           try { window.dispatchEvent(new CustomEvent('tz:ready')); } catch (e) {}
