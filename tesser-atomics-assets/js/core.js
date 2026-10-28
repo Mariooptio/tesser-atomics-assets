@@ -1,4 +1,17 @@
 /* Tesser Atomics · core: switches, __TZ_PREP, __TZ_LAZY · extracted unchanged from handoff-site-v11 heavy/site-t4m-v11.html (script 0). */
+/* v1.0.4 · Preload mode. <script src=".../core.min.js" data-tz-eager></script> asks the page to build every 3D scene
+   up front, behind a preloader (loader.js runs it), instead of as each one scrolls near. core.js sets window.__TZ_EAGER
+   (read by __TZ_LAZY and by M1/M2's own lazy gates) and puts html.tz-loading on before first paint, so the preloader is
+   showing and the page cannot scroll from the first frame. If this script never runs, neither class is set and the
+   preloader stays hidden: the page is never trapped behind it. */
+(function () {
+  var me = document.currentScript;
+  if (!me || !me.hasAttribute('data-tz-eager')) return;
+  window.__TZ_EAGER = true;
+  document.documentElement.className += ' tz-loading tz-locked';
+  try { if ('scrollRestoration' in history) history.scrollRestoration = 'manual'; } catch (e) {}
+})();
+
 
 /* Switches, read before first paint (search or hash): s4, m2, m3, apps, ships, globe, strip, cards. window.__TZ_SWITCHES
    is this page's list, written by build.py with the page's defaults first (site v5: s4=scroll, m2=ambient, m3=off,
@@ -102,6 +115,7 @@ window.__TZ_SWITCHES = [["s3", ["light", "dark"], "Section 3: on paper, flowing 
     var host = document.getElementById(id), done = false;
     if (s4 !== 'chapters') wait = 0;
     var go = function () { if (done) return; done = true; try { fn(); } catch (e) { if (window.console) console.error(e); } };
+    if (window.__TZ_EAGER) { go(); return; }                     // v1.0.4 · preloading: mount at once
     if (!host || !('IntersectionObserver' in window)) { go(); return; }
     var io = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { io.disconnect(); setTimeout(go, wait); } }, { rootMargin: '100% 0px 100% 0px' });
     io.observe(host);
