@@ -1067,3 +1067,12 @@ html.tz-ships-sitehead.tz-apps-ships.tz-ships-scroll .tz-ships__h{ font-weight: 
    The plant embed wraps its stage in .tz-how--t2, so the stage keeps the prototype's 2.9 (desktop) / 2.3 (phone) proportion. ---- */
 .tz-how--t2 { --tz-plant-ar: 2.9; }
 @media (max-width: 760px) { .tz-how--t2 { --tz-plant-ar: 2.3; } }
+
+/* ---- v1.0.3: M4 copy panel at tablet widths (820-1199px). The beat lines were absolutely positioned inside a fixed
+   112-120px area, so the longest beat (four to five lines on a narrow card) ran past the panel's bottom edge.
+   Stack the beats in one grid cell instead: the area now sizes to the tallest beat and the panel grows to fit.
+   Desktop sizes are unchanged (the tallest beat already fit). ---- */
+@media (min-width: 820px) {
+  html.tz-m4copy-panel #tsr-m4.tz-textleft:not([data-drive="host"]) .m4-card .m4-call { display: grid; min-height: 0; }
+  html.tz-m4copy-panel #tsr-m4.tz-textleft:not([data-drive="host"]) .m4-card .m4-call > .m4-beat { position: relative; top: auto; left: auto; right: auto; grid-area: 1 / 1; }
+}
