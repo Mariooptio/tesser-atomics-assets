@@ -60,6 +60,10 @@
     if (!menuBtn || !panel) return;
     menuBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     panel.hidden = !open;
+    // Webflow build: the open state is also a class, so it is styled in the Designer (topnav_panel.is-open, topnav_menu-line.is-open)
+    panel.classList.toggle('is-open', open);
+    menuBtn.classList.toggle('is-open', open);
+    Array.prototype.forEach.call(menuBtn.querySelectorAll('[data-navmenu-line]'), function (l) { l.classList.toggle('is-open', open); });
     nav.classList.toggle('is-menu', open);
     if (open) { var f = panel.querySelector('a'); if (f) f.focus(); }
   }
@@ -78,7 +82,7 @@
     var line = window.innerHeight / 3, cur = null;
     navSecs.forEach(function (sec) { var r = sec.getBoundingClientRect(); if (r.top <= line && r.bottom > 0 && sec.offsetParent !== null) cur = sec.id; });
     navLinks.forEach(function (a) {
-      var on = a.getAttribute('href') === '#' + cur;
+      var on = (a.getAttribute('href') || '').replace(/^\/(?=#)/, '') === '#' + cur;   // Webflow build: links are "/#id" so they work from every page
       a.classList.toggle('is-active', on);
       if (on) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current');
     });
@@ -106,11 +110,12 @@
 
   /* ---------------------------------------------------------------- anchor jumps (the hash is left alone: moments read switches from it) */
   document.addEventListener('click', function (e) {
-    var a = e.target.closest && e.target.closest('a[href^="#"]');
+    var a = e.target.closest && e.target.closest('a[href^="#"], a[href^="/#"]');
     if (!a) return;
-    var href = a.getAttribute('href'), id = href.split('&')[0], ship = a.getAttribute('data-ship') || shipOf(href);
+    // Webflow build: "/#id" is handled here when the id is on this page; from Contact or FAQ the browser goes home as usual
+    var href = a.getAttribute('href').replace(/^\/(?=#)/, ''), id = href.split('&')[0], ship = a.getAttribute('data-ship') || shipOf(href);
     if (id === '#') { e.preventDefault(); return; }
-    var t = id === '#top' ? document.body : document.getElementById(id.slice(1));
+    var t = id === '#top' ? (document.getElementById('top') ? document.body : null) : document.getElementById(id.slice(1));
     if (!t) return;
     e.preventDefault();
     if (ship) pickShip(ship);
