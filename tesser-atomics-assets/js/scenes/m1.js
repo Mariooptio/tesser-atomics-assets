@@ -47,7 +47,9 @@
   if (!HOST) return;
   var done = false, io = null;
   var go = function () { if (done) return; done = true; if (io) io.disconnect(); boot(); };
-  if ('IntersectionObserver' in window) {
+  /* v1.0.4 · window.__TZ_EAGER (the page preloads every scene behind its preloader): boot at once */
+  if (window.__TZ_EAGER) { go(); }
+  else if ('IntersectionObserver' in window) {
     io = new IntersectionObserver(function (es) { if (es[0].isIntersecting) { io.disconnect(); setTimeout(go, 0); } }, { rootMargin: '100% 0px 100% 0px' });
     io.observe(HOST);
   } else { go(); }
