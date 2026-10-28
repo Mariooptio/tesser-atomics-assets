@@ -1062,3 +1062,8 @@ html.tz-ships-sitehead.tz-apps-ships.tz-ships-scroll .tz-ships__h{ font-weight: 
   #tsr-ships .sh-poster,#tsr-ships .sh-thumb,#tsr-ships .sh-th-img img,#tsr-ships .sh-cta,#tsr-ships .sh-cta svg{transition:none}
 }
 
+
+/* ---- Webflow build (v1.0.2): variables the prototype set on its section wrappers, which the Designer sections don't carry.
+   The plant embed wraps its stage in .tz-how--t2, so the stage keeps the prototype's 2.9 (desktop) / 2.3 (phone) proportion. ---- */
+.tz-how--t2 { --tz-plant-ar: 2.9; }
+@media (max-width: 760px) { .tz-how--t2 { --tz-plant-ar: 2.3; } }
