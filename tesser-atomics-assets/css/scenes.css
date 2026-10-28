@@ -1081,12 +1081,11 @@ html.tz-ships-sitehead.tz-apps-ships.tz-ships-scroll .tz-ships__h{ font-weight: 
    and loader.js switch live here. Hook: [data-tz-preloader] on the overlay, [data-tz-preloader-bar] on the bar's fill
    (it grows with --tz-progress, 0..1), optional [data-tz-preloader-count] for a number.
    html.tz-loading  set by core.js before first paint in preload mode: the overlay shows
-   html.tz-locked   the page cannot scroll while it loads
+   html.tz-locked   while it loads (loader.js holds scroll by blocking input, so the layout never changes)
    .is-done         on the overlay when everything is in: it fades, then tz-loading goes and it is removed
    Without core.js's preload mode (or if it never runs) the overlay is never shown. ---- */
 html:not(.tz-loading) [data-tz-preloader] { display: none !important; }
-html.tz-locked, html.tz-locked body { overflow: hidden !important; height: 100%; }
 [data-tz-preloader] { transition: opacity .6s cubic-bezier(.2, .7, .1, 1), visibility 0s linear .6s; }
 [data-tz-preloader].is-done { opacity: 0; visibility: hidden; pointer-events: none; }
-[data-tz-preloader-bar] { transform-origin: 0 50%; transform: scaleX(var(--tz-progress, 0)); will-change: transform; }
+[data-tz-preloader-bar], [data-tz-preloader-fill] { transform-origin: 0 50%; will-change: transform; }
 @media (prefers-reduced-motion: reduce) { [data-tz-preloader] { transition: none; } }
