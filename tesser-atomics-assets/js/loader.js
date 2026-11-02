@@ -86,7 +86,7 @@
        - web fonts, and the hero background video's first frames.
      Progress goes to the preloader as --tz-progress (0..1) on [data-tz-preloader], as scaleX on its
      [data-tz-preloader-bar] (or [data-tz-preloader-fill]) and as a whole number into [data-tz-preloader-count].
-     Scroll is held by blocking wheel, touch and scroll keys (v1.0.5), so nothing reflows when it is released. When all of it is in, or after a 15 s safety cap, the page unlocks
+     Scroll is held by blocking wheel, touch and scroll keys (v1.0.5), so nothing reflows when it is released. When all of it is in, or after an 8 s safety cap, the page unlocks
      (html loses tz-locked, gains tz-ready), the preloader fades (.is-done) and is then removed (tz-loading goes).
      window fires 'tz:ready'. A #id in the URL is honoured once the page is unlocked. */
   function preload(els) {
@@ -101,7 +101,7 @@
     addEventListener('touchmove', stop, { passive: false });
     addEventListener('keydown', stopKey);
     if (pre) pre.setAttribute('aria-busy', 'true');
-    var t0 = Date.now(), MIN = 700, CAP = 15000, done = false, total = 0, got = 0, shown = 0;
+    var t0 = Date.now(), MIN = 700, CAP = 8000, done = false, total = 0, got = 0, shown = 0;
     var raf = window.requestAnimationFrame || function (f) { return setTimeout(f, 16); };
     function paint() {
       if (done) return;
@@ -175,8 +175,8 @@
       setTimeout(tv, 6000);
     }
 
-    // the page itself (stylesheets, the rest of the document)
-    if (document.readyState !== 'complete') { var tw = task(); window.addEventListener('load', tw, { once: true }); }
+    // v1.0.6 · the window load event is not waited for: third-party embeds (the forms' Turnstile check) can hold it
+    // back for a long time, and everything the page itself needs is already counted above.
 
     setTimeout(finish, CAP);                // safety: never keep the page locked longer than this
     raf(paint);
