@@ -4,6 +4,31 @@
    (read by __TZ_LAZY and by M1/M2's own lazy gates) and puts html.tz-loading on before first paint, so the preloader is
    showing and the page cannot scroll from the first frame. If this script never runs, neither class is set and the
    preloader stays hidden: the page is never trapped behind it. */
+/* v1.0.6 · No live 3D without a real GPU. Every WebGL context the scenes ask for is requested with
+   failIfMajorPerformanceCaveat, so on a machine where the browser would fall back to software rendering (GPU blocklisted,
+   hardware acceleration off, some VMs and remote desktops) getContext returns null and each scene takes its own
+   no-WebGL path: the still poster, no shader work. Software-rendered raymarching is what froze some desktops for
+   minutes. html gets tz-nogl when that happens. */
+(function () {
+  var P = window.HTMLCanvasElement && HTMLCanvasElement.prototype, orig = P && P.getContext, soft;
+  if (!orig) return;
+  P.getContext = function (type, attrs) {
+    if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+      var a = {}; if (attrs) for (var k in attrs) a[k] = attrs[k];
+      a.failIfMajorPerformanceCaveat = true;
+      var gl = orig.call(this, type, a);
+      if (gl && soft === undefined) {             // some browsers hand out a software context anyway: check its renderer once
+        try { var d = gl.getExtension('WEBGL_debug_renderer_info'); soft = /swiftshader|llvmpipe|softpipe|software|basic render driver/i.test(d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : ''); }
+        catch (e) { soft = false; }
+      }
+      if (gl && soft) { try { var lc = gl.getExtension('WEBGL_lose_context'); if (lc) lc.loseContext(); } catch (e) {} gl = null; }
+      if (!gl && document.documentElement.className.indexOf('tz-nogl') < 0) document.documentElement.className += ' tz-nogl';
+      return gl;
+    }
+    return orig.apply(this, arguments);
+  };
+})();
+
 (function () {
   var me = document.currentScript;
   if (!me || !me.hasAttribute('data-tz-eager')) return;
