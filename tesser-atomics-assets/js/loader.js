@@ -69,6 +69,43 @@
   }
 
 
+  /* v1.0.7 · ?tzdebug in the URL shows a small report in the corner: browser, GPU, each scene's build time and whether
+     it runs live or as a still, and the preloader time. Send a screenshot of it when something misbehaves. */
+  var DEBUG = /[?&]tzdebug\b/.test(location.search), logs = [];
+  function log(msg) {
+    logs.push(msg);
+    if (window.console) console.info('[tz] ' + msg);
+    if (DEBUG) paintDebug();
+  }
+  function gpu() {
+    try {
+      var c = document.createElement('canvas'), gl = c.getContext('webgl');
+      if (!gl) return 'no WebGL (' + (document.documentElement.className.indexOf('tz-nogl') >= 0 ? 'refused: software/slow GPU' : 'unavailable') + ')';
+      var d = gl.getExtension('WEBGL_debug_renderer_info');
+      var r = d ? gl.getParameter(d.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
+      var lc = gl.getExtension('WEBGL_lose_context'); if (lc) lc.loseContext();
+      return r;
+    } catch (e) { return 'error: ' + e.message; }
+  }
+  var box;
+  function paintDebug() {
+    if (!document.body) return;
+    if (!box) {
+      box = document.createElement('pre');
+      box.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:2147483647;max-width:min(560px,92vw);max-height:60vh;overflow:auto;margin:0;padding:10px 12px;font:11px/1.45 ui-monospace,Menlo,monospace;color:#F5F1E8;background:rgba(4,9,15,.92);border:1px solid #E1AB25;white-space:pre-wrap;pointer-events:auto';
+      document.body.appendChild(box);
+      logs.unshift('UA: ' + navigator.userAgent, 'GPU: ' + gpu(), 'screen: ' + innerWidth + 'x' + innerHeight + ' @' + (window.devicePixelRatio || 1) + 'x, cores ' + (navigator.hardwareConcurrency || '?') + ', memory ' + (navigator.deviceMemory || '?') + ' GB');
+    }
+    box.textContent = 'Tesser debug (screenshot this)\n' + logs.join('\n');
+  }
+  if (DEBUG) {
+    if ('PerformanceObserver' in window) try {
+      new PerformanceObserver(function (l) { l.getEntries().forEach(function (e) { if (e.duration > 400) log('long task: ' + Math.round(e.duration) + ' ms'); }); }).observe({ entryTypes: ['longtask'] });
+    } catch (e) {}
+    addEventListener('error', function (e) { log('error: ' + (e.message || e.type)); });
+    addEventListener('DOMContentLoaded', paintDebug);
+  }
+
   function prepAll(els) {
     els.forEach(function (el) {
       (el.getAttribute('data-tz-prep') || '').split(',').forEach(function (id) {
@@ -135,24 +172,52 @@
           }, 700);
           var id = (location.hash || '').slice(1), target = id && /^[\w-]+$/.test(id) && document.getElementById(id);
           if (target) target.scrollIntoView({ block: 'start' });
+          try { localStorage.removeItem('tzBuild'); } catch (e) {}
+          log('page unlocked after ' + Math.round(performance.now()) + ' ms' + (window.__TZ_FORCE_NOGL ? ' (stills from: ' + window.__TZ_FORCE_NOGL + ')' : ''));
           try { window.dispatchEvent(new CustomEvent('tz:ready')); } catch (e) {}
         }); });
       }, wait);
     }
     var hold = task();                      // held open until every task below is registered
 
-    // scenes: prep, then load in page order; each counts once its script has run and two frames have passed
+    // scenes (v1.0.7): every script is fetched in parallel up front, but they are run ONE AT A TIME, with a pause for the
+    // browser between them, and each one is timed. Building a scene (compiling its shaders, drawing its first frame) is
+    // the heavy part; doing all five back to back is what hung weaker machines. If one scene takes longer than the
+    // budget, or the browser drops a GPU context, the rest are told to show their still image instead
+    // (window.__TZ_FORCE_NOGL, honoured by core.js), so a slow machine gets a working page in seconds, not a frozen one.
     prepAll(els);
+    var queue = [], BUDGET = 1500, built = 0;
     els.forEach(function (el) {
       var name = el.getAttribute('data-tz-scene');
       if (!name || loaded[name]) return;
       loaded[name] = true;
-      var t = task(), s = document.createElement('script');
-      s.src = url(name); s.async = false;
-      s.onload = function () { raf(function () { raf(t); }); };
-      s.onerror = function () { console.warn('[tz] scene failed to load:', name); t(); };
-      document.body.appendChild(s);
+      var l = document.createElement('link'); l.rel = 'preload'; l.as = 'script'; l.href = url(name); l.crossOrigin = 'anonymous';
+      document.head.appendChild(l);
+      queue.push({ name: name, t: task() });
     });
+    addEventListener('webglcontextlost', function (e) { if (!(e.target && e.target.closest && e.target.closest('[data-tz-scene]'))) return; if (!window.__TZ_FORCE_NOGL) { window.__TZ_FORCE_NOGL = 'context-lost'; log('GPU context lost: remaining scenes use stills'); } }, true);
+    function next() {
+      var q = queue.shift();
+      if (!q) return;
+      var s = document.createElement('script'), t1 = performance.now();   // timed from insertion: a scene builds while its script runs
+      s.src = url(q.name); s.crossOrigin = 'anonymous';
+      s.onload = function () {
+        raf(function () { raf(function () {
+          var ms = Math.round(performance.now() - t1);
+          var root = document.querySelector('[data-tz-scene="' + q.name + '"] [id]');
+          var state = root ? (/is-live/.test(root.className) ? 'live' : /nogl|no-gl/.test(root.className) ? 'still' : 'built') : '?';
+          log(q.name + ': ' + state + ', built in ' + ms + ' ms');
+          if (ms > BUDGET && !window.__TZ_FORCE_NOGL) { window.__TZ_FORCE_NOGL = 'slow:' + q.name; log('over budget: remaining scenes use stills'); }
+          built++; q.t();
+          setTimeout(next, 30);                       // let the browser breathe (and the safety cap fire) between scenes
+        }); });
+      };
+      s.onerror = function () { log(q.name + ': failed to load'); q.t(); setTimeout(next, 0); };
+      document.body.appendChild(s);
+    }
+    try { if (!window.__TZ_FORCE_NOGL) localStorage.setItem('tzBuild', String(Date.now())); } catch (e) {}
+    if (window.__TZ_FORCE_NOGL) log('stills mode: ' + window.__TZ_FORCE_NOGL);
+    next();
 
     // images: lazy ones become eager; each counts when loaded (or failed)
     Array.prototype.forEach.call(document.images, function (img) {
