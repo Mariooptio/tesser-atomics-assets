@@ -4,6 +4,25 @@
    (read by __TZ_LAZY and by M1/M2's own lazy gates) and puts html.tz-loading on before first paint, so the preloader is
    showing and the page cannot scroll from the first frame. If this script never runs, neither class is set and the
    preloader stays hidden: the page is never trapped behind it. */
+/* v1.0.7 · Self-healing stills.
+   - ?tz3d=off in the URL shows still images for every scene (and remembers it on this browser); ?tz3d=on undoes it.
+   - In preload mode the loader marks the build as in progress (localStorage tzBuild) and clears the mark once the page
+     unlocks. If a visit finds the mark still there, the last build never finished (the tab froze, crashed or was closed
+     mid-build), so this browser is switched to stills for good, automatically. */
+(function () {
+  var q = location.search, ls = null;
+  try { ls = window.localStorage; } catch (e) {}
+  function stills(why) { window.__TZ_FORCE_NOGL = why; try { ls && ls.setItem('tzStills', why); } catch (e) {} }
+  if (/[?&]tz3d=on\b/.test(q)) { try { ls && (ls.removeItem('tzStills'), ls.removeItem('tzBuild')); } catch (e) {} return; }
+  if (/[?&]tz3d=off\b/.test(q)) return stills('url');
+  try {
+    var prev = ls && ls.getItem('tzStills');
+    if (prev) { window.__TZ_FORCE_NOGL = prev; return; }
+    var b = ls && ls.getItem('tzBuild');
+    if (b && Date.now() - (+b) < 7 * 864e5) stills('previous-build-never-finished');
+  } catch (e) {}
+})();
+
 /* v1.0.6 · No live 3D without a real GPU. Every WebGL context the scenes ask for is requested with
    failIfMajorPerformanceCaveat, so on a machine where the browser would fall back to software rendering (GPU blocklisted,
    hardware acceleration off, some VMs and remote desktops) getContext returns null and each scene takes its own
@@ -14,6 +33,10 @@
   if (!orig) return;
   P.getContext = function (type, attrs) {
     if (type === 'webgl' || type === 'webgl2' || type === 'experimental-webgl') {
+      if (window.__TZ_FORCE_NOGL) {                 // v1.0.7 · the loader decided this machine gets stills
+        if (document.documentElement.className.indexOf('tz-nogl') < 0) document.documentElement.className += ' tz-nogl';
+        return null;
+      }
       var a = {}; if (attrs) for (var k in attrs) a[k] = attrs[k];
       a.failIfMajorPerformanceCaveat = true;
       var gl = orig.call(this, type, a);
