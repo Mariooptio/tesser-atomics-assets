@@ -191,7 +191,31 @@ var T4M = (function () {
     .replace('  col += (h12(gl_FragCoord.xy + fract(uTime * 7.13) * 917.0) - 0.5) * uGrain;\n  col += (h12(gl_FragCoord.yx',
       '  col += (h12(gl_FragCoord.yx');
 
+  // v1.0.8 · Windows (Direct3D) only. Chrome hands this program to Microsoft's shader compiler, which writes every loop
+  // out in full and every function out at each place it is used. Here the pebble bed was traced twice per pixel, and
+  // each trace is three nested loops (4 layers x 8 cells x 7 pebbles), so the program ballooned. Same picture: the two
+  // traces share one call, and every loop starts from int(min(uTime, 0.0)) (always 0 at run time) so the compiler
+  // keeps it a loop. All-or-nothing; Macs and everything else get the program exactly as before. ?tzd3d forces it.
+  var isD3D;
+  function d3d(gl) {
+    if (isD3D !== undefined) return isD3D;
+    isD3D = /[?&]tzd3d\b/.test(location.search);
+    try { var x = gl.getExtension('WEBGL_debug_renderer_info'); if (x && /direct3d|d3d1[01]/i.test(gl.getParameter(x.UNMASKED_RENDERER_WEBGL))) isD3D = true; } catch (e) {}
+    return isD3D;
+  }
+  function forD3D(src) {
+    if (!/uniform float uTime\b/.test(src)) return src;
+    var out = src, t = [
+      ["  ivec3 id0; float f0; float t0 = traceBed(uCamPos, rd0, 80.0, id0, f0);\n  float kd = clamp((id0.z >= 0 ? t0 : 30.0) / 16.0, 0.12, 1.0);\n  vec3 rd = normalize(rd0 + (uCamR * g.x + uCamU * g.y) * amp * kd);\n  ivec3 id; float fc; float t = traceBed(uCamPos, rd, 80.0, id, fc);\n", "  // Windows: the two traces (plain view, then the view bent by the salt) share one call\n  vec3 rd = rd0; ivec3 id; float fc; float t = 0.0;\n  for (int pass = int(min(uTime, 0.0)); pass < 2; pass++){\n    t = traceBed(uCamPos, rd, 80.0, id, fc);\n    if (pass == 0){ float kd = clamp((id.z >= 0 ? t : 30.0) / 16.0, 0.12, 1.0); rd = normalize(rd0 + (uCamR * g.x + uCamU * g.y) * amp * kd); }\n  }\n"]
+    ];
+    for (var i = 0; i < t.length; i++) { if (out.indexOf(t[i][0]) < 0) return src; out = out.split(t[i][0]).join(t[i][1]); }
+    // every counted loop with a literal start: start + int(min(uTime, 0.0))
+    return out.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*(-?\d+)\s*;/g, function (m, v, a) {
+      return 'for (int ' + v + ' = ' + a + ' + int(min(uTime, 0.0));';
+    });
+  }
   function shader(gl, type, src) {
+    if (type === gl.FRAGMENT_SHADER && d3d(gl)) src = forD3D(src);
     var s = gl.createShader(type);
     gl.shaderSource(s, src);
     gl.compileShader(s);
