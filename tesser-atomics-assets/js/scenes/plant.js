@@ -103,6 +103,24 @@ var PLCORE = (function () {
       src = src.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0\s*;\s*\1\s*<\s*(\d+)\s*;/g, function (m, v, n) {
         return +n >= 16 ? 'for (int ' + v + ' = int(min(uTime, 0.0)); ' + v + ' < ' + n + ';' : m;
       });
+      // test 3 · the remaining copies: surface normals were computed in two places, and shadows and ambient light in
+      // two (ship surface and floor), each a full copy of the scene. Now each runs once per pixel. All-or-nothing: if any
+      // piece is not found exactly, the program is left as test 2 had it.
+      (function () {
+        var t3 = [
+        ["float softSh(vec3 ro, vec3 rd){\n", "// test 3: both surface normals (fine, and coarse for the blueprint creases) from ONE loop, so the scene is written once\nfloat gSHV = 1.0, gAOV = 1.0;\nvoid calcNN(vec3 p, float e, bool two, out vec3 n1, out vec3 n2){\n  n1 = vec3(0.0); n2 = vec3(0.0);\n  int cnt = two ? 8 : 4;\n  for (int i = int(min(uTime, 0.0)); i < 8; i++){\n    if (i >= cnt) break;\n    int j = i & 3;\n    vec3 k = 0.5773 * (2.0 * vec3(float(((j + 3) >> 1) & 1), float((j >> 1) & 1), float(j & 1)) - 1.0);\n    vec3 c = k * map(p + k * (i < 4 ? e : e * 9.0));\n    if (i < 4) n1 += c; else n2 += c;\n  }\n  n1 = normalize(n1); n2 = two ? normalize(n2) : n1;\n}\nfloat softSh(vec3 ro, vec3 rd){\n"],
+        ["  bool disp = false;\n", "  bool disp = false;\n  vec3 hp = vec3(0.0), hn = vec3(0.0, 1.0, 0.0), nB = vec3(0.0, 1.0, 0.0); float aoOff = 0.0; bool needSA = false;\n  bool goldPre = abs(mat - M_GOLD) < 0.5;\n  if (hit){ hp = ro + rd * t; calcNN(hp, max(0.0005, t * uPixAng * 0.5), BP && !goldPre, hn, nB); aoOff = 0.005;\n    needSA = !(BP && !goldPre) || abs(mat - M_POWER) < 0.5; }\n  else if (tT < 1e4){ hp = ro + rd * tT; needSA = !BP; }\n  gSHV = 1.0; gAOV = 1.0;\n  if (needSA){ gSHV = softSh(hp + hn * 0.01, uKeyDir); gAOV = calcAO(hp + hn * aoOff, hn); }\n"],
+        ["    vec3 n = calcN(p, e);\n", "    vec3 n = hn;\n"],
+        ["      vec3 n2 = calcN(p, e * 9.0);\n", "      vec3 n2 = nB;\n"],
+        ["    bool gold = abs(mat - M_GOLD) < 0.5;\n", "    bool gold = abs(mat - M_GOLD) < 0.5;\n    vec3 emS = vec3(0.0), colS = vec3(0.0);\n    if (!(BP && !gold) || abs(mat - M_POWER) < 0.5) colS = surf(p, n, rd, mat, aux, slot, off, emS);\n"],
+        ["{ vec3 em; surf(p, n, rd, mat, aux, slot, off, em); col = mix(", "{ vec3 em = emS; col = mix("],
+        ["      vec3 em;\n      col = surf(p, n, rd, mat, aux, slot, off, em) + em;\n", "      vec3 em = emS;\n      col = colS + em;\n"],
+        ["      float sh = softSh(p + n * 0.01, uKeyDir);\n      float ao = calcAO(p, n);\n", "      float sh = gSHV;\n      float ao = gAOV;\n"],
+        ["  float sh = softSh(pw0 + n0 * 0.01, uKeyDir);\n  float ao = calcAO(pw0 + n0 * 0.005, n0);\n", "  float sh = gSHV;\n  float ao = gAOV;\n"]
+        ], out = src;
+        for (var i = 0; i < t3.length; i++) { if (out.indexOf(t3[i][0]) < 0) return; out = out.split(t3[i][0]).join(t3[i][1]); }
+        src = out;
+      })();
       // test 2 · the scene function drew the ship twice (slots A and B), so every place that calls it carried two full
       // copies of the ship. One non-unrollable 2-step loop keeps a single copy per call site.
       src = src.replace(
