@@ -105,6 +105,46 @@ var SHCORE = (function () {
 
   function shader(gl, type, src) {
     var s = gl.createShader(type);
+    // v1.0.8 · Windows (Direct3D) only (same transform as the plant, whose program this one shares): Chrome hands this program to Microsoft's shader compiler, which unrolls every
+    // constant-length loop and copies the whole scene function into each step. The 200-step raymarch and 48-step shadow
+    // loops then balloon until the compile takes minutes and fails ("program link"), freezing the tab. Starting those
+    // loops from int(min(uTime, 0.0)), which is always 0 at run time, stops the unrolling: same picture, small program.
+    // The same trick the author already uses on the 4-step normal/AO loops. Macs and everything else get the source
+    // exactly as before.
+    if (type === gl.FRAGMENT_SHADER && d3d(gl) && /uniform\s+float\s+uTime\b/.test(src)) {
+      src = src.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0\s*;\s*\1\s*<\s*(\d+)\s*;/g, function (m, v, n) {
+        return +n >= 16 ? 'for (int ' + v + ' = int(min(uTime, 0.0)); ' + v + ' < ' + n + ';' : m;
+      });
+      // test 3 · the remaining copies: surface normals were computed in two places, and shadows and ambient light in
+      // two (ship surface and floor), each a full copy of the scene. Now each runs once per pixel. All-or-nothing: if any
+      // piece is not found exactly, the program is left as test 2 had it.
+      (function () {
+        var t3 = [
+        ["float softSh(vec3 ro, vec3 rd){\n", "// test 3: both surface normals (fine, and coarse for the blueprint creases) from ONE loop, so the scene is written once\nfloat gSHV = 1.0, gAOV = 1.0;\nvoid calcNN(vec3 p, float e, bool two, out vec3 n1, out vec3 n2){\n  n1 = vec3(0.0); n2 = vec3(0.0);\n  int cnt = two ? 8 : 4;\n  for (int i = int(min(uTime, 0.0)); i < 8; i++){\n    if (i >= cnt) break;\n    int j = i & 3;\n    vec3 k = 0.5773 * (2.0 * vec3(float(((j + 3) >> 1) & 1), float((j >> 1) & 1), float(j & 1)) - 1.0);\n    vec3 c = k * map(p + k * (i < 4 ? e : e * 9.0));\n    if (i < 4) n1 += c; else n2 += c;\n  }\n  n1 = normalize(n1); n2 = two ? normalize(n2) : n1;\n}\nfloat softSh(vec3 ro, vec3 rd){\n"],
+        ["  bool disp = false;\n", "  bool disp = false;\n  vec3 hp = vec3(0.0), hn = vec3(0.0, 1.0, 0.0), nB = vec3(0.0, 1.0, 0.0); float aoOff = 0.0; bool needSA = false;\n  bool goldPre = abs(mat - M_GOLD) < 0.5;\n  if (hit){ hp = ro + rd * t; calcNN(hp, max(0.0005, t * uPixAng * 0.5), BP && !goldPre, hn, nB); aoOff = 0.005;\n    needSA = !(BP && !goldPre) || abs(mat - M_POWER) < 0.5; }\n  else if (tT < 1e4){ hp = ro + rd * tT; needSA = !BP; }\n  gSHV = 1.0; gAOV = 1.0;\n  if (needSA){ gSHV = softSh(hp + hn * 0.01, uKeyDir); gAOV = calcAO(hp + hn * aoOff, hn); }\n"],
+        ["    vec3 n = calcN(p, e);\n", "    vec3 n = hn;\n"],
+        ["      vec3 n2 = calcN(p, e * 9.0);\n", "      vec3 n2 = nB;\n"],
+        ["    bool gold = abs(mat - M_GOLD) < 0.5;\n", "    bool gold = abs(mat - M_GOLD) < 0.5;\n    vec3 emS = vec3(0.0), colS = vec3(0.0);\n    if (!(BP && !gold) || abs(mat - M_POWER) < 0.5) colS = surf(p, n, rd, mat, aux, slot, off, emS);\n"],
+        ["{ vec3 em; surf(p, n, rd, mat, aux, slot, off, em); col = mix(", "{ vec3 em = emS; col = mix("],
+        ["      vec3 em;\n      col = surf(p, n, rd, mat, aux, slot, off, em) + em;\n", "      vec3 em = emS;\n      col = colS + em;\n"],
+        ["      float sh = softSh(p + n * 0.01, uKeyDir);\n      float ao = calcAO(p, n);\n", "      float sh = gSHV;\n      float ao = gAOV;\n"],
+        ["  float sh = softSh(pw0 + n0 * 0.01, uKeyDir);\n  float ao = calcAO(pw0 + n0 * 0.005, n0);\n", "  float sh = gSHV;\n  float ao = gAOV;\n"]
+        ], out = src;
+        for (var i = 0; i < t3.length; i++) { if (out.indexOf(t3[i][0]) < 0) return; out = out.split(t3[i][0]).join(t3[i][1]); }
+        src = out;
+      })();
+      // test 2 · the scene function drew the ship twice (slots A and B), so every place that calls it carried two full
+      // copies of the ship. One non-unrollable 2-step loop keeps a single copy per call site.
+      src = src.replace(
+        '  if (uAsmA > 0.002){ gAsm = uAsmA; gSlot = 0.0; ship(p, uShipA); }\n  if (uAsmB > 0.002){ gAsm = uAsmB; gSlot = 1.0; ship(p, uShipB); }',
+        '  for (int k = int(min(uTime, 0.0)); k < 2; k++){\n    float aK = k == 0 ? uAsmA : uAsmB;\n    if (aK > 0.002){ gAsm = aK; gSlot = float(k); ship(p, k == 0 ? uShipA : uShipB); }\n  }');
+      // test 4 · one scene call per pixel (see the comment inside). Runs after tests 1-3, all-or-nothing.
+      (function () {
+        var t4 = [["  for (int i = int(min(uTime, 0.0)); i < 200; i++){\n    float d = map(ro + rd * t);\n    if (dP < dPP && dP < d) sil = min(sil, dP / max(tP * uPixAng, 1e-5));\n    dPP = dP; dP = d; tP = t;\n    float eps = max(0.0004, t * uPixAng * 0.4);\n    if (d < eps){ hit = true; break; }\n    t += d * 0.9;\n    if (t > tMax) break;\n  }\n  float mat = gM, aux = gA, slot = gS; vec3 off = gO;\n", "  // test 4: ONE call to the scene for the whole pixel. The march, the surface normals, ambient occlusion and the\n  // shadow ray are phases of a single loop (0 march, 1 normals, 2 AO, 3 shadow, 4 done), in the original order and\n  // with the original arithmetic, so Windows compiles the ship once instead of four times.\n  float mat = 0.0, aux = 0.0, slot = 0.0; vec3 off = vec3(0.0);\n  vec3 hp = vec3(0.0), hn = vec3(0.0, 1.0, 0.0), nB = vec3(0.0, 1.0, 0.0), nA1 = vec3(0.0), nA2 = vec3(0.0);\n  int ph = 0, k = 0, mi = 0, ncnt = 4; float e0 = 0.0, aoOff = 0.0; bool needSA = false;\n  float shRes = 1.0, shT = 0.02, occ = 0.0, wAO = 1.0;\n  for (int i = int(min(uTime, 0.0)); i < 260; i++){\n    vec3 q; vec3 kv = vec3(0.0); float hAO = 0.0;\n    if (ph == 0) q = ro + rd * t;\n    else if (ph == 1){ int j = k & 3; kv = 0.5773 * (2.0 * vec3(float(((j + 3) >> 1) & 1), float((j >> 1) & 1), float(j & 1)) - 1.0);\n      q = hp + kv * (k < 4 ? e0 : e0 * 9.0); }\n    else if (ph == 2){ hAO = 0.03 + 0.3 * float(k) / 3.0; q = (hp + hn * aoOff) + hn * hAO; }\n    else if (ph == 3) q = (hp + hn * 0.01) + uKeyDir * shT;\n    else break;\n    gSh = ph >= 2;\n    float d = map(q);\n    if (ph == 0){\n      bool endM = false;\n      if (dP < dPP && dP < d) sil = min(sil, dP / max(tP * uPixAng, 1e-5));\n      dPP = dP; dP = d; tP = t;\n      float eps = max(0.0004, t * uPixAng * 0.4);\n      if (d < eps){ hit = true; endM = true; }\n      else { t += d * 0.9; mi++; if (t > tMax || mi >= 200) endM = true; }\n      if (endM){\n        mat = gM; aux = gA; slot = gS; off = gO;\n        bool goldPre = abs(mat - M_GOLD) < 0.5, bpPre = uBlue > 0.5;\n        ph = 4;\n        if (hit){ hp = ro + rd * t; e0 = max(0.0005, t * uPixAng * 0.5); ncnt = (bpPre && !goldPre) ? 8 : 4; aoOff = 0.005;\n          needSA = !(bpPre && !goldPre) || abs(mat - M_POWER) < 0.5; ph = 1; k = 0; }\n        else if (tT < 1e4){ hp = ro + rd * tT; needSA = !bpPre; ph = needSA ? 2 : 4; k = 0; }\n      }\n    } else if (ph == 1){\n      vec3 c = kv * d; if (k < 4) nA1 += c; else nA2 += c;\n      k++;\n      if (k >= ncnt){ hn = normalize(nA1); nB = ncnt == 8 ? normalize(nA2) : hn; k = 0; ph = needSA ? 2 : 4; }\n    } else if (ph == 2){\n      occ += (hAO - gDR) * wAO; wAO *= 0.7;\n      k++; if (k >= 4){ k = 0; ph = 3; }\n    } else {\n      shRes = min(shRes, mix(6.0, 3.6, uLight) * gDR / shT);\n      shT += clamp(d, 0.02, 0.8);\n      k++; if (shRes < 0.004 || shT > 26.0 || k >= 48) ph = 4;\n    }\n  }\n  gSh = false;\n  gSHV = needSA ? clamp(shRes, 0.0, 1.0) : 1.0;\n  gAOV = needSA ? clamp(1.0 - 2.6 * occ, 0.0, 1.0) : 1.0;\n"], ["  vec3 hp = vec3(0.0), hn = vec3(0.0, 1.0, 0.0), nB = vec3(0.0, 1.0, 0.0); float aoOff = 0.0; bool needSA = false;\n  bool goldPre = abs(mat - M_GOLD) < 0.5;\n  if (hit){ hp = ro + rd * t; calcNN(hp, max(0.0005, t * uPixAng * 0.5), BP && !goldPre, hn, nB); aoOff = 0.005;\n    needSA = !(BP && !goldPre) || abs(mat - M_POWER) < 0.5; }\n  else if (tT < 1e4){ hp = ro + rd * tT; needSA = !BP; }\n  gSHV = 1.0; gAOV = 1.0;\n  if (needSA){ gSHV = softSh(hp + hn * 0.01, uKeyDir); gAOV = calcAO(hp + hn * aoOff, hn); }\n", ""]], out = src;
+        for (var i = 0; i < t4.length; i++) { if (out.indexOf(t4[i][0]) < 0) return; out = out.split(t4[i][0]).join(t4[i][1]); }
+        src = out;
+      })();
+    }
     gl.shaderSource(s, src);
     gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
@@ -113,6 +153,13 @@ var SHCORE = (function () {
       return null;
     }
     return s;
+  }
+  var isD3D;
+  function d3d(gl) {        // true when Chrome/Edge render WebGL through Direct3D (Windows); ?tzd3d forces it for testing
+    if (isD3D !== undefined) return isD3D;
+    isD3D = /[?&]tzd3d\b/.test(location.search);
+    try { var x = gl.getExtension('WEBGL_debug_renderer_info'); if (x && /direct3d|d3d1[01]/i.test(gl.getParameter(x.UNMASKED_RENDERER_WEBGL))) isD3D = true; } catch (e) {}
+    return isD3D;
   }
   function program(gl, vs, fs) {
     var v = shader(gl, gl.VERTEX_SHADER, vs), f = shader(gl, gl.FRAGMENT_SHADER, fs);
