@@ -172,7 +172,6 @@
           }, 700);
           var id = (location.hash || '').slice(1), target = id && /^[\w-]+$/.test(id) && document.getElementById(id);
           if (target) target.scrollIntoView({ block: 'start' });
-          try { localStorage.removeItem('tzBuild'); } catch (e) {}
           log('page unlocked after ' + Math.round(performance.now()) + ' ms' + (window.__TZ_FORCE_NOGL ? ' (stills from: ' + window.__TZ_FORCE_NOGL + ')' : ''));
           try { window.dispatchEvent(new CustomEvent('tz:ready')); } catch (e) {}
         }); });
@@ -186,7 +185,7 @@
     // budget, or the browser drops a GPU context, the rest are told to show their still image instead
     // (window.__TZ_FORCE_NOGL, honoured by core.js), so a slow machine gets a working page in seconds, not a frozen one.
     prepAll(els);
-    var queue = [], BUDGET = 1500, built = 0;
+    var queue = [], built = 0;
     els.forEach(function (el) {
       var name = el.getAttribute('data-tz-scene');
       if (!name || loaded[name]) return;
@@ -207,7 +206,8 @@
           var root = document.querySelector('[data-tz-scene="' + q.name + '"] [id]');
           var state = root ? (/is-live/.test(root.className) ? 'live' : /nogl|no-gl/.test(root.className) ? 'still' : 'built') : '?';
           log(q.name + ': ' + state + ', built in ' + ms + ' ms');
-          if (ms > BUDGET && !window.__TZ_FORCE_NOGL) { window.__TZ_FORCE_NOGL = 'slow:' + q.name; log('over budget: remaining scenes use stills'); }
+          // v1.0.9 · no build-time limit: a scene that takes a few seconds to prepare (e.g. Windows) is not a reason to
+          // give the other scenes stills. Stills only for no graphics acceleration (core.js) or a GPU reset (below).
           built++; q.t();
           setTimeout(next, 30);                       // let the browser breathe (and the safety cap fire) between scenes
         }); });
@@ -215,7 +215,6 @@
       s.onerror = function () { log(q.name + ': failed to load'); q.t(); setTimeout(next, 0); };
       document.body.appendChild(s);
     }
-    try { if (!window.__TZ_FORCE_NOGL) localStorage.setItem('tzBuild', String(Date.now())); } catch (e) {}
     if (window.__TZ_FORCE_NOGL) log('stills mode: ' + window.__TZ_FORCE_NOGL);
     next();
 
