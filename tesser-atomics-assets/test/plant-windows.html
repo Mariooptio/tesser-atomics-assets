@@ -159,10 +159,10 @@ h1{font-size:20px;margin:0 0 6px} p{margin:0 0 20px;color:#4d5a6e}
   function log(m){lines.push(m);box.textContent=lines.join('\n');}
   var orig=/[?&]original\b/.test(location.search);
   var src=orig?'https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@v1.0.7/tesser-atomics-assets/js/scenes/plant.min.js'
-              :'https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@plant-fix-test-1/tesser-atomics-assets/js/scenes/plant.min.js';
+              :'https://cdn.jsdelivr.net/gh/Mariooptio/tesser-atomics-assets@plant-fix-test-2/tesser-atomics-assets/js/scenes/plant.min.js';
   try{var c=document.createElement('canvas'),g=c.getContext('webgl2')||c.getContext('webgl'),x=g&&g.getExtension('WEBGL_debug_renderer_info');
       log('GPU: '+(g?(x?g.getParameter(x.UNMASKED_RENDERER_WEBGL):g.getParameter(g.RENDERER)):'no WebGL (stills)'));}catch(e){log('GPU: '+e.message);}
-  log('Version: '+(orig?'ORIGINAL (no fix)':'FIXED'));
+  log('Version: '+(orig?'ORIGINAL (no fix)':'FIXED (test 2)'));
   addEventListener('error',function(e){log('error: '+(e.message||e.type));});
   try{new PerformanceObserver(function(l){l.getEntries().forEach(function(e){if(e.duration>300)log('page froze for '+Math.round(e.duration)+' ms');});}).observe({entryTypes:['longtask']});}catch(e){}
   if(window.__TZ_PREP)__TZ_PREP('tsr-plant');
