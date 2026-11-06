@@ -103,6 +103,11 @@ var PLCORE = (function () {
       src = src.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0\s*;\s*\1\s*<\s*(\d+)\s*;/g, function (m, v, n) {
         return +n >= 16 ? 'for (int ' + v + ' = int(min(uTime, 0.0)); ' + v + ' < ' + n + ';' : m;
       });
+      // test 2 · the scene function drew the ship twice (slots A and B), so every place that calls it carried two full
+      // copies of the ship. One non-unrollable 2-step loop keeps a single copy per call site.
+      src = src.replace(
+        '  if (uAsmA > 0.002){ gAsm = uAsmA; gSlot = 0.0; ship(p, uShipA); }\n  if (uAsmB > 0.002){ gAsm = uAsmB; gSlot = 1.0; ship(p, uShipB); }',
+        '  for (int k = int(min(uTime, 0.0)); k < 2; k++){\n    float aK = k == 0 ? uAsmA : uAsmB;\n    if (aK > 0.002){ gAsm = aK; gSlot = float(k); ship(p, k == 0 ? uShipA : uShipB); }\n  }');
     }
     gl.shaderSource(s, src);
     gl.compileShader(s);
