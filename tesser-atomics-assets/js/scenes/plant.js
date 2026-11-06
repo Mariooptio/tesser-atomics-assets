@@ -93,6 +93,17 @@ var PLCORE = (function () {
 
   function shader(gl, type, src) {
     var s = gl.createShader(type);
+    // v1.0.8 · Windows (Direct3D) only: Chrome hands this program to Microsoft's shader compiler, which unrolls every
+    // constant-length loop and copies the whole scene function into each step. The 200-step raymarch and 48-step shadow
+    // loops then balloon until the compile takes minutes and fails ("program link"), freezing the tab. Starting those
+    // loops from int(min(uTime, 0.0)), which is always 0 at run time, stops the unrolling: same picture, small program.
+    // The same trick the author already uses on the 4-step normal/AO loops. Macs and everything else get the source
+    // exactly as before.
+    if (type === gl.FRAGMENT_SHADER && d3d(gl) && /uniform\s+float\s+uTime\b/.test(src)) {
+      src = src.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0\s*;\s*\1\s*<\s*(\d+)\s*;/g, function (m, v, n) {
+        return +n >= 16 ? 'for (int ' + v + ' = int(min(uTime, 0.0)); ' + v + ' < ' + n + ';' : m;
+      });
+    }
     gl.shaderSource(s, src);
     gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) {
@@ -101,6 +112,13 @@ var PLCORE = (function () {
       return null;
     }
     return s;
+  }
+  var isD3D;
+  function d3d(gl) {        // true when Chrome/Edge render WebGL through Direct3D (Windows); ?tzd3d forces it for testing
+    if (isD3D !== undefined) return isD3D;
+    isD3D = /[?&]tzd3d\b/.test(location.search);
+    try { var x = gl.getExtension('WEBGL_debug_renderer_info'); if (x && /direct3d|d3d1[01]/i.test(gl.getParameter(x.UNMASKED_RENDERER_WEBGL))) isD3D = true; } catch (e) {}
+    return isD3D;
   }
   function program(gl, vs, fs) {
     var v = shader(gl, gl.VERTEX_SHADER, vs), f = shader(gl, gl.FRAGMENT_SHADER, fs);
