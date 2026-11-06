@@ -461,7 +461,32 @@
 '}'
   ].join('\n');
 
+  // v1.0.8 · Windows (Direct3D) only. Chrome hands this program to Microsoft's shader compiler, which writes every
+  // function out in full at every place it is used and unrolls constant loops. Here that meant the whole scene twice
+  // per pixel (pebble and layers), each with its shading written twice (hit and soft edge): four copies of each
+  // shading block, which takes minutes to compile. Same picture, built once: the two scenes run through one loop,
+  // each shades once, and the long march / shadow loops are not unrolled. All-or-nothing; Macs and everything else
+  // get the program exactly as before. ?tzd3d forces it for testing.
+  var isD3D;
+  function d3d() {
+    if (isD3D !== undefined) return isD3D;
+    isD3D = /[?&]tzd3d\b/.test(location.search);
+    try { var x = gl.getExtension('WEBGL_debug_renderer_info'); if (x && /direct3d|d3d1[01]/i.test(gl.getParameter(x.UNMASKED_RENDERER_WEBGL))) isD3D = true; } catch (e) {}
+    return isD3D;
+  }
+  function forD3D(src) {
+    var out = src, t = [
+      ["  float D=length(uCamPos);\n  if(hit){ vec3 c = sc==0 ? shadePeb(ro+rd*t,rd,t,pa) : shadePart(ro+rd*t,rd,t,pa);\n#ifdef LIGHT\n    return vec4(c,1.0); }\n#else\n    return vec4(mix(c,bg,smoothstep(D-0.9,D+0.25,t)*0.4),1.0); }\n#endif\n  if(dm<1.2){ vec3 c = sc==0 ? shadePeb(ro+rd*tm,rd,tm,pa) : shadePart(ro+rd*tm,rd,tm,pa);\n#ifdef LIGHT\n    return vec4(c, 1.0-smoothstep(0.3,1.2,dm)); }\n#else\n    return vec4(mix(c,bg,smoothstep(D-0.9,D+0.25,tm)*0.4), 1.0-smoothstep(0.3,1.2,dm)); }\n#endif\n  return vec4(0); }\n", "  float D=length(uCamPos);\n  float tS, aS;\n  if(hit){ tS=t; aS=1.0; } else if(dm<1.2){ tS=tm; aS=1.0-smoothstep(0.3,1.2,dm); } else return vec4(0);\n  vec3 c = sc==0 ? shadePeb(ro+rd*tS,rd,tS,pa) : shadePart(ro+rd*tS,rd,tS,pa);\n#ifdef LIGHT\n  return vec4(c,aS); }\n#else\n  return vec4(mix(c,bg,smoothstep(D-0.9,D+0.25,tS)*0.4),aS); }\n#endif\n"],
+      ["  if(uAlA>0.001){ vec4 a=renderScene(0,frag,bg); col=mix(col,tone(a.rgb),a.a*uAlA); cov=a.a*uAlA; }\n  if(uAlB>0.001){ vec4 b=renderScene(1,frag,bg); col=mix(col,tone(b.rgb),b.a*uAlB); cov=max(cov,b.a*uAlB); }\n", "  for(int si=int(min(uTime,0.0)); si<2; si++){ float al = si==0 ? uAlA : uAlB;\n    if(al>0.001){ vec4 a=renderScene(si,frag,bg); col=mix(col,tone(a.rgb),a.a*al); cov=max(cov,a.a*al); } }\n"],
+      ["  if(uAlA>0.001){ vec4 a=renderScene(0,frag,bg); col=mix(col,a.rgb,a.a*uAlA); }\n  if(uAlB>0.001){ vec4 b=renderScene(1,frag,bg); col=mix(col,b.rgb,b.a*uAlB); }\n", "  for(int si=int(min(uTime,0.0)); si<2; si++){ float al = si==0 ? uAlA : uAlB;\n    if(al>0.001){ vec4 a=renderScene(si,frag,bg); col=mix(col,a.rgb,a.a*al); } }\n"]
+    ];
+    for (var i = 0; i < t.length; i++) { if (out.indexOf(t[i][0]) < 0) return src; out = out.split(t[i][0]).join(t[i][1]); }
+    return out.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0\s*;\s*\1\s*<\s*(\d+)\s*;/g, function (m, v, n) {
+      return +n >= 16 ? 'for(int ' + v + '=int(min(uTime,0.0)); ' + v + '<' + n + ';' : m;
+    });
+  }
   function compile(type, src) {
+    if (type === gl.FRAGMENT_SHADER && d3d()) src = forD3D(src);
     var s = gl.createShader(type); gl.shaderSource(s, src); gl.compileShader(s);
     if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) { console.error('[m1] shader', gl.getShaderInfoLog(s)); return null; }
     return s;
