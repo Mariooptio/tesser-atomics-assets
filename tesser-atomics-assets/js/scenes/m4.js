@@ -112,7 +112,36 @@ var M4CORE = (function () {
     '}'
   ].join('\n');
 
+  // v1.0.8 · Windows (Direct3D) only. Chrome hands this program to Microsoft's shader compiler, which writes the scene
+  // out in full at every place it is used: here ten places (main view, normals x2, shadows x4, ambient light x3), which
+  // takes minutes to compile and can crash the tab. Same picture, built twice instead of ten times: the march, normals
+  // and AO are phases of one loop, and the original shadow function is called from one place. The developer debug view (uDbg, never on in the site) is left out. All-or-nothing; Macs and
+  // everything else get the program exactly as before. ?tzd3d forces it for testing.
+  var isD3D;
+  function d3d(gl) {
+    if (isD3D !== undefined) return isD3D;
+    isD3D = /[?&]tzd3d\b/.test(location.search);
+    try { var x = gl.getExtension('WEBGL_debug_renderer_info'); if (x && /direct3d|d3d1[01]/i.test(gl.getParameter(x.UNMASKED_RENDERER_WEBGL))) isD3D = true; } catch (e) {}
+    return isD3D;
+  }
+  function forD3D(src) {
+    if (!/uniform float uTime/.test(src)) return src;
+    var out = src, t = [
+      ["  for (int i = 0; i < 160; i++){\n    float d = map(ro + rd * t);\n    float eps = uOrtho > 0.5 ? uPixAng * 0.4 : max(0.00025, t * uPixAng * 0.4);\n    if (d < eps){ hit = true; break; }\n    t += d * 0.92;\n    if (t > tMax) break;\n  }\n  float mat = gM, aux = gA;\n", "  // Windows: the march, surface normals and ambient occlusion are phases of ONE loop (0 march, 1 normals, 2 AO, 4 done),\n  // with the original arithmetic; the shadow is the original softSh, called once below for whichever surface this is.\n  float mat = 0.0, aux = 0.0;\n  vec3 hp = vec3(0.0), hn = vec3(0.0, 1.0, 0.0), nA = vec3(0.0), shO = vec3(0.0), aoP = vec3(0.0);\n  int ph = 0, k = 0, mi = 0; float e0 = 0.0; bool needAO = false, needSh = false;\n  float shRes = 1.0, shT = 0.012, occ = 0.0, wAO = 1.0;\n  for (int i = int(min(uTime, 0.0)); i < 169; i++){\n    vec3 q; vec3 kv = vec3(0.0); float hAO = 0.0;\n    if (ph == 0) q = ro + rd * t;\n    else if (ph == 1){ kv = 0.5773 * (2.0 * vec3(float(((k + 3) >> 1) & 1), float((k >> 1) & 1), float(k & 1)) - 1.0); q = hp + kv * e0; }\n    else if (ph == 2){ hAO = 0.012 + 0.11 * float(k) / 4.0; q = aoP + hn * hAO; }\n    else if (ph == 3) q = shO + uKeyDir * shT;\n    else break;\n    gSh = ph >= 2;\n    float d = map(q);\n    if (ph == 0){\n      bool endM = false;\n      float eps = uOrtho > 0.5 ? uPixAng * 0.4 : max(0.00025, t * uPixAng * 0.4);\n      if (d < eps){ hit = true; endM = true; }\n      else { t += d * 0.92; mi++; if (t > tMax || mi >= 160) endM = true; }\n      if (endM){\n        mat = gM; aux = gA; ph = 4;\n        if (hit){ hp = ro + rd * t; e0 = uOrtho > 0.5 ? uPixAng * 0.5 : max(0.0003, t * uPixAng * 0.5); ph = 1; k = 0; }\n        else if (tT < 1e4){ hp = ro + rd * tT; hn = vec3(0.0, 1.0, 0.0); shO = hp + hn * 0.002; aoP = hp; needAO = true; needSh = true; ph = 2; k = 0; }\n      }\n    } else if (ph == 1){\n      nA += kv * d; k++;\n      if (k >= 4){ hn = normalize(nA); k = 0; needSh = true;\n        if (abs(mat - M_FROST) < 0.5){ shO = hp + hn * 0.01; needAO = false; ph = 4; }\n        else { shO = hp + hn * 0.004; aoP = hp + hn * 0.001; needAO = true; ph = 2; } }\n    } else if (ph == 2){\n      occ += (hAO - gDR) * wAO; wAO *= 0.72;\n      k++; if (k >= 5){ k = 0; ph = 4; }\n    } else {\n      shRes = min(shRes, 6.0 * gDR / shT);\n      shT += clamp(d, 0.006, 0.22);\n      k++; if (shRes < 0.004 || shT > 7.0 || k >= 64) ph = 4;\n    }\n  }\n  gSh = false;\n  gSHV = needSh ? softSh(shO, uKeyDir) : 1.0;     // the original shadow function, now called from one place\n  gAOV = needAO ? clamp(1.0 - 3.2 * occ, 0.0, 1.0) : 1.0;\n"],
+      ["vec3 calcN(vec3 p, float e){\n", "float gSHV = 1.0, gAOV = 1.0;\nvec3 calcN(vec3 p, float e){\n"],
+      ["    vec3 n = calcN(p, e);\n    if (abs(mat - M_FROST) < 0.5)", "    vec3 n = hn;\n    if (abs(mat - M_FROST) < 0.5)"],
+      ["  float sh = softSh(p + n0 * 0.004, uKeyDir);\n  float ao = calcAO(p + n0 * 0.001, n0);\n", "  float sh = gSHV;\n  float ao = gAOV;\n"],
+      ["  float sh = softSh(p + n * 0.01, uKeyDir);\n", "  float sh = gSHV;\n"],
+      ["    float sh = softSh(p + n * 0.002, uKeyDir);\n    float ao = calcAO(p, n);\n", "    float sh = gSHV;\n    float ao = gAOV;\n"],
+      ["  if (uDbg > 0.5 && hit){ vec3 p = ro + rd * t; vec3 n = calcN(p, 0.001); float s1 = softSh(p + n * 0.004, uKeyDir); float a1 = calcAO(p + n * 0.001, n);\n    oCol = vec4(uDbg > 1.5 ? vec3(a1) : vec3(s1, max(dot(n, uKeyDir), 0.0), 0.0), 1.0); return; }\n", ""]
+    ];
+    for (var i = 0; i < t.length; i++) { if (out.indexOf(t[i][0]) < 0) return src; out = out.split(t[i][0]).join(t[i][1]); }
+    return out.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*0\s*;\s*\1\s*<\s*(\d+)\s*;/g, function (m, v, n) {
+      return +n >= 16 ? 'for (int ' + v + ' = int(min(uTime, 0.0)); ' + v + ' < ' + n + ';' : m;
+    });
+  }
   function shader(gl, type, src) {
+    if (type === gl.FRAGMENT_SHADER && d3d(gl)) src = forD3D(src);
     var s = gl.createShader(type);
     gl.shaderSource(s, src);
     gl.compileShader(s);
